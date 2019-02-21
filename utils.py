@@ -8,6 +8,7 @@ from flask import jsonify
 
 logger = logging.getLogger(__name__)
 
+JSON_TYPE = {'ContentType':'application/json'}
 
 def safe(on_error: str = 'Algo salió mal..'):
     """Sends on_error message if func raises an exception"""
@@ -84,3 +85,7 @@ def send_message(text, msg_type='in_channel'):
         "response_type": msg_type,
         "text": text,
     })
+
+
+def make_response(response, status=200, response_type=JSON_TYPE):
+    return jsonify(response), status, response_type

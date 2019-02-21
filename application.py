@@ -10,7 +10,8 @@ from commands.subte.subte import subte as subte_
 from commands.feriados.feriados import feriadosarg
 from commands.hoypido.hoypido import hoypido as hoypido_, hoypido_by_day
 from commands.posiciones.posiciones import posiciones as posiciones_
-from utils import send_message
+from events.dispatcher import dispatch_event
+from utils import send_message, JSON_TYPE
 
 logger = logging.getLogger(__name__)
 
@@ -85,8 +86,14 @@ def posiciones():
 
 @app.route('/events', methods=['GET', 'POST'])
 def events():
-    param = request.get_json(force=True, silent=True) or {}
-    return jsonify(param.get('challenge', 'nope'))
+    event = request.get_json(force=True, silent=True) or {}
+    if not event:
+        return make_response({'error': False, 'reason': 'Ignored'})
+
+    try:
+        return dispatch_event(event)
+    except Exception:
+        return make_response({'error': True, 'reason': 'Unknown'}, 400)
 
 
 if __name__ == '__main__':
