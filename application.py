@@ -11,7 +11,10 @@ from commands.feriados.feriados import feriadosarg
 from commands.hoypido.hoypido import hoypido as hoypido_, hoypido_by_day
 from commands.posiciones.posiciones import posiciones as posiciones_
 from events.dispatcher import dispatch_event
-from utils import send_message, JSON_TYPE
+from utils import send_message
+
+logging.basicConfig(format='%(asctime)s - %(name)30s - %(levelname)8s [%(funcName)s] %(message)s',
+                    level=logging.INFO)
 
 logger = logging.getLogger(__name__)
 
@@ -28,11 +31,6 @@ def not_found(error):
 @app.errorhandler(404)
 def not_found(error):
     return make_response(jsonify({'error': 'Not found'}), 404)
-
-
-@app.route('/interactive', methods=['GET', 'POST'])
-def test():
-    return send_message('Proximamente..')
 
 
 @app.route('/', methods=['GET', 'POST'])
@@ -86,6 +84,7 @@ def posiciones():
 
 @app.route('/events', methods=['GET', 'POST'])
 def events():
+    logger.info('Event received')
     event = request.get_json(force=True, silent=True) or {}
     if not event:
         return make_response({'error': False, 'reason': 'Ignored'})
@@ -94,6 +93,11 @@ def events():
         return dispatch_event(event)
     except Exception:
         return make_response({'error': True, 'reason': 'Unknown'}, 400)
+
+
+@app.route('/interactive', methods=['GET', 'POST'])
+def interactive():
+    return send_message('Proximamente..')
 
 
 if __name__ == '__main__':

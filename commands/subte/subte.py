@@ -8,7 +8,7 @@ from utils import soupify_url
 logger = logging.getLogger(__name__)
 
 
-def subte():
+def get_subte():
     try:
         return _subte()
     except Exception:

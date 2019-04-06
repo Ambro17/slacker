@@ -3,7 +3,7 @@ from collections import defaultdict
 from utils import string_to_ascii, trim, soupify_url, monospace
 
 
-def dolar():
+def get_dolar():
     soup = soupify_url("http://www.dolarhoy.com/usd")
     data = soup.find_all('table')
 

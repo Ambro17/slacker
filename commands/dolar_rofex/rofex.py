@@ -2,14 +2,14 @@ from commands.dolar_rofex.constants import DOLAR_REGEX, Contrato, month_name, EM
 from utils import soupify_url, monospace
 
 
-def rofex():
+def get_rofex():
     """Print dolar futuro contracts."""
-    rofex_data = get_rofex()
+    rofex_data = _get_rofex()
     contratos = prettify_rofex(rofex_data)
     return contratos
 
 
-def get_rofex():
+def _get_rofex():
     try:
         soup = soupify_url('https://www.rofex.com.ar/', verify=False)
     except TimeoutError:

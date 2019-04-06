@@ -11,7 +11,7 @@ from commands.feriados.utils import (
 logger = logging.getLogger(__name__)
 
 
-def feriadosarg() -> str:
+def get_feriadosarg() -> str:
     today = datetime.now(tz=timezone(timedelta(hours=-3)))
     feriados = get_feriados(today.year)
     if not feriados:

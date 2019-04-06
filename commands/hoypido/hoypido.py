@@ -6,13 +6,13 @@ from commands.hoypido.utils import (
 )
 
 
-def hoypido() -> str:
+def get_hoypido() -> str:
     comidas = get_comidas()
     msg = prettify_food_offers(comidas)
     return msg
 
 
-def hoypido_by_day(day) -> str:
+def get_hoypido_by_day(day) -> str:
     comidas = get_comidas()
 
     day_num = day_to_int.get(day.upper())

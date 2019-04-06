@@ -2,7 +2,7 @@ from utils import soupify_url, monospace, safe, trim
 
 
 @safe(on_error='No compré el olé todavía.. preguntame más tarde')
-def posiciones() -> str:
+def get_posiciones() -> str:
     soup = soupify_url('http://www.promiedos.com.ar/primera', encoding='ISO-8859-1')
     tabla = soup.find('table', {'id': 'posiciones'})
     info = parse_posiciones(tabla)
