@@ -1,9 +1,11 @@
 import json
 import os
 
-from flask import Flask, request, make_response, jsonify
+from flask import Flask, request, make_response, jsonify, url_for
 from slackeventsapi import SlackEventAdapter
 from slackclient import SlackClient
+from werkzeug.routing import BuildError
+from werkzeug.utils import redirect
 
 from commands.aws.aws import get_aws
 from commands.dolar.dolar import get_dolar
@@ -26,7 +28,10 @@ slack_client = SlackClient(os.environ["BOT_TOKEN"])
 @events_route.on("message")
 def handle_message(event_data):
     event = event_data['event']
-    if event.get("subtype") != 'bot_message' and not event.get('text', '').startswith('/'):
+    if (
+            event.get("subtype") != 'bot_message' and
+            not event.get('text', '').startswith('/')
+    ):
         slack_client.api_call(
             "chat.postMessage",
             channel=event['channel'],
@@ -56,6 +61,19 @@ def not_found(error):
 @app.errorhandler(404)
 def not_found(error):
     return make_response(jsonify({'error': 'Not found'}), 404)
+
+
+@app.route('/', methods=['GET', 'POST'])
+def command_dispatcher():
+    command = request.form.get('command', '')[1:]
+    try:
+        return redirect(url_for(command))
+    except BuildError:
+        if not command:
+            msg = 'You must pass a command argument'
+        else:
+            msg = f'Unknown command "{command}"'
+    return send_message(msg)
 
 
 @app.route('/dolar', methods=['GET', 'POST'])
@@ -158,4 +176,4 @@ def message_actions():
 
 
 if __name__ == "__main__":
-    app.run(port=3000, debug=True)
+    app.run(host='0.0.0.0', port='3000', debug=os.getenv('DEBUG', False))

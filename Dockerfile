@@ -6,4 +6,6 @@ WORKDIR /slacker
 RUN apk update && apk add g++ make gcc libxslt libxslt-dev libxml2 libxml2-dev
 RUN pip install -r requirements.txt
 
-CMD sh
+EXPOSE 3000
+
+CMD ["python", "application.py"]
