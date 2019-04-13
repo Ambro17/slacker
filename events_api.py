@@ -1,7 +1,7 @@
 import json
 import os
 
-from flask import Flask, request, make_response
+from flask import Flask, request, make_response, jsonify
 from slackeventsapi import SlackEventAdapter
 from slackclient import SlackClient
 
@@ -48,9 +48,20 @@ def error_handler(err):
     print("ERROR: " + str(err))
 
 
+@app.errorhandler(400)
+def not_found(error):
+    return make_response(jsonify({'error': 'Bad request'}), 400)
+
+
+@app.errorhandler(404)
+def not_found(error):
+    return make_response(jsonify({'error': 'Not found'}), 404)
+
+
 @app.route('/dolar', methods=['GET', 'POST'])
 def dolar():
     return send_message(get_dolar())
+
 
 @app.route('/rofex', methods=['GET', 'POST'])
 def rofex():
