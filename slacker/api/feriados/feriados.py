@@ -1,7 +1,7 @@
 from datetime import datetime, timezone, timedelta
 import logging
 
-from commands.feriados.utils import (
+from slacker.api.feriados.utils import (
     get_feriados,
     prettify_feriados,
     filter_feriados,

@@ -1,18 +1,19 @@
-from sqlalchemy import Column, Integer, String
-from sqlalchemy.ext.declarative import declarative_base
-
-Base = declarative_base()
+from database import db
 
 
-class User(Base):
-    __tablename__ = 'user'
+class User(db.Model):
+    id = db.db.Column(db.Integer, primary_key=True)
+    user = db.Column(db.String)
+    first_name = db.Column(db.String)
+    last_name = db.Column(db.String)
+    real_name = db.Column(db.String)
+    timezone = db.Column(db.String)
 
-    id = Column(Integer, primary_key=True)
-    user = Column(String)
-    first_name = Column(String)
-    last_name = Column(String)
-    real_name = Column(String)
-    timezone = Column(String)
+    team_id = db.Column(db.Integer, db.ForeignKey('team.id'))
+    team = db.relationship("Team", back_populates='members')
+    ovi_name = db.Column(db.String)
+    ovi_token = db.Column(db.String)
+
 
     def __repr__(self):
         return f"User(id={self.id!r}, user={self.user})"

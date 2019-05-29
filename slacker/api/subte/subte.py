@@ -3,7 +3,7 @@ import logging
 
 from requests.exceptions import ReadTimeout
 
-from utils import soupify_url
+from slacker.utils import soupify_url
 
 logger = logging.getLogger(__name__)
 

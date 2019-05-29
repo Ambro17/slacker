@@ -1,4 +1,4 @@
-from commands.hoypido.utils import (
+from slacker.api.hoypido.utils import (
     get_comidas,
     prettify_food_offers,
     day_to_int,

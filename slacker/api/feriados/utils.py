@@ -3,7 +3,7 @@ import logging
 
 import requests
 
-from commands.feriados.constants import month_names, FERIADOS_URL
+from slacker.api.feriados.constants import month_names, FERIADOS_URL
 
 logger = logging.getLogger(__name__)
 
