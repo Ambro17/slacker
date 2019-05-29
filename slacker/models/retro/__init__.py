@@ -33,7 +33,7 @@ Models to support sprints with retroitems
 
 + Powered by http://www.plantuml.com/plantuml/uml/
 """
-from database import db
+from slacker.database import db
 
 
 class Team(db.Model):
@@ -41,7 +41,7 @@ class Team(db.Model):
     name = db.Column(db.String)
 
     sprints = db.relationship("Sprint", backref='team')
-    members = db.relationship("User", back_populates='team')
+    members = db.relationship("User", back_populates='theteam')
 
 
 class Sprint(db.Model):
@@ -49,7 +49,7 @@ class Sprint(db.Model):
 
     name = db.Column(db.String, unique=True)
     start_date = db.Column(db.TIMESTAMP(timezone=True))
-    team_id = db.Column(db.Integer, ForeignKey('team.id'))
+    team_id = db.Column(db.Integer, db.ForeignKey('team.id'))
     running = db.Column(db.Boolean, default=True)
 
     retro_items = db.relationship("RetroItem", backref='sprint')

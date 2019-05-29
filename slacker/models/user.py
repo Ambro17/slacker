@@ -1,8 +1,8 @@
-from database import db
+from slacker.database import db
 
 
 class User(db.Model):
-    id = db.db.Column(db.Integer, primary_key=True)
+    id = db.Column(db.Integer, primary_key=True)
     user = db.Column(db.String)
     first_name = db.Column(db.String)
     last_name = db.Column(db.String)
