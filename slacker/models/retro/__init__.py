@@ -47,6 +47,10 @@ class Team(db.Model):
         back_populates='teams',
     )
 
+    @property
+    def active_sprint(self):
+        return next((s for s in self.sprints if s.running is True), None)
+
 
 class Sprint(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -77,8 +81,8 @@ class RetroItem(db.Model):
         return self.sprint.team
 
     def __repr__(self):
-        return "RetroItem(user='%s', text='%s', datetime='%s', sprint_id='%s')" % (
-            self.user,
+        return "RetroItem(user_id='%s', text='%s', datetime='%s', sprint_id='%s')" % (
+            self.user_id,
             self.text,
             self.datetime,
             self.sprint_id,

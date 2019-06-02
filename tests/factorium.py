@@ -21,6 +21,7 @@ class TeamFactory(BaseFactory):
     class Meta:
         model = Team
 
+    id = factory.sequence(lambda n: n + 1)
     name = factory.Faker('first_name')
 
     @factory.post_generation
@@ -39,6 +40,7 @@ class UserFactory(BaseFactory):
     class Meta:
         model = User
 
+    id = factory.sequence(lambda n: n + 1)
     first_name = factory.Faker('first_name')
     last_name = factory.Faker('last_name')
 
@@ -63,6 +65,7 @@ class SprintFactory(BaseFactory):
     class Meta:
         model = Sprint
 
+    id = factory.sequence(lambda n: n + 1)
     name = factory.Faker('first_name')
     start_date = factory.LazyFunction(datetime.now)
     team = factory.SubFactory(TeamFactory)
@@ -75,6 +78,7 @@ class RetroItemFactory(SQLAlchemyModelFactory):
         model = RetroItem
         sqlalchemy_session = db.session
 
+    id = factory.sequence(lambda n: n + 1)
     text = factory.fuzzy.FuzzyText()
     sprint = factory.SubFactory(SprintFactory)
 

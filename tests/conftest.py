@@ -1,8 +1,8 @@
 import pytest
-from dotenv import load_dotenv
 
 from slacker import create_app
 from slacker.database import db as _db
+
 
 @pytest.fixture
 def app():
@@ -40,3 +40,8 @@ def client(app):
 def runner(app):
     """A test runner for the app's Click commands."""
     return app.test_cli_runner()
+
+@pytest.fixture(scope='session')
+def f():
+    from tests import factorium
+    return factorium

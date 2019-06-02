@@ -5,6 +5,7 @@ from loguru import logger
 from slackclient import SlackClient
 from slackeventsapi import SlackEventAdapter
 
+from slacker.blueprints import retro
 from .database import db
 from .models.user import User
 from .blueprints import commands
@@ -31,6 +32,7 @@ def register_extensions(app):
 def register_blueprints(app):
     """Register Flask blueprints."""
     app.register_blueprint(commands.bp)
+    app.register_blueprint(retro.bp)
 
 
 def register_error_handlers(app):

@@ -1,57 +1,83 @@
 from datetime import datetime as d
 
-from sqlalchemy import exists
+from loguru import logger
 
-from slacker import db
+from slacker import db, User
 from slacker.models import Sprint, Team, RetroItem
 
 S = db.session
 
-def start_sprint(name, team_id):
-    the_team = Team.query.filter_by(id=team_id).one_or_none()
-    if the_team is None:
-        return 'Non-existing team'
 
-    sprint_q = Sprint.query.filter_by(team_id=team_id, running=True)
-    active_sprint = S.query(sprint_q.exists()).scalar()
+class TeamNotFoundException(Exception):
+    pass
+
+
+class MultipleActiveSprintsException(Exception):
+    pass
+
+
+def start_sprint(name, team_id):
+    team = Team.query.filter_by(id=team_id).one_or_none()
+    if team is None:
+        raise TeamNotFoundException("No team with id %r" % team_id)
+
+    sprint_query = Sprint.query.filter_by(team_id=team_id, running=True)
+    active_sprint = S.query(sprint_query.exists()).scalar()
     if active_sprint:
-        return "Can't start sprint if there's already one in progress."
+        raise MultipleActiveSprintsException(
+            "There can only be one active sprint per team at a time"
+        )
 
     sprint = Sprint(
         name=name,
         start_date=d.utcnow(),
-        team_id=the_team.id,  # Maybe look team id by user id and team information.
+        team_id=team.id,
     )
     S.add(sprint)
     S.commit()
-
-
-def add_item(user, text):
-    sprint = Sprint.query.filter_by(running=True, team=user.team).one_or_none()
-    S.add(
-        RetroItem(
-            user=user,
-            text=text,
-            datetime=d.now(),
-            sprint_id=sprint.id,
-        )
-    )
-    S.commit()
-
-
-def show_items():
-    items = RetroItem.query.filter_by(expired=False).all()
-    return items
+    return sprint.id
 
 
 def end_sprint(name):
-    sprint = Sprint.query.filter_by(name=name).one_or_none()
-    if sprint:
-        if sprint.running:
-            sprint.running = False
-            S.commit()
-        else:
-            'sprint already stopped'
+    sprint = _get_sprint(name=name)
+    sprint.running = False
+    S.commit()
+    return sprint.id
 
-    else:
-        'inexistent sprint name'
+
+def add_item(sprint_id, user_id, text):
+    sprint = _get_sprint(id=sprint_id)
+    item = RetroItem(
+        user_id=user_id,
+        text=text,
+        datetime=d.utcnow(),
+        sprint_id=sprint.id,
+    )
+    S.add(item)
+    S.commit()
+    return item.id
+
+
+def get_retro_items(sprint_id):
+    sprint = _get_sprint(id=sprint_id)
+    items = RetroItem.query.filter_by(sprint_id=sprint.id).all()
+    return items
+
+
+class SprintNotFoundException(Exception):
+    """Raised when we try to reference a sprint that doesn't exist"""
+
+
+class InactiveSprintException(Exception):
+    """There's no active sprint to apply this action to"""
+
+
+def _get_sprint(**kwargs):
+    sprint = S.query(Sprint).filter_by(**kwargs).one_or_none()
+    if sprint is None:
+        raise SprintNotFoundException("Sprint %r does not exist." % kwargs)
+    if sprint.running is False:
+        raise InactiveSprintException(
+            "No active sprint with specified parameters %r" % kwargs
+        )
+    return sprint

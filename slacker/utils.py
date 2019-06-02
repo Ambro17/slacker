@@ -4,11 +4,29 @@ from functools import wraps
 
 import requests
 from bs4 import BeautifulSoup
-from flask import jsonify
+from flask import jsonify, Blueprint
 
 logger = logging.getLogger(__name__)
 
 JSON_TYPE = {'ContentType':'application/json'}
+
+
+class BaseBlueprint(Blueprint):
+    """The Flask Blueprint subclass.
+
+    Credits to https://gist.github.com/hodgesmr/2db123b4e1bd8dcca5c4
+    """
+
+    def route(self, rule, **options):
+        """Override the `route` method; add rules with and without slash."""
+        def decorator(f):
+            new_rule = rule.rstrip('/')
+            new_rule_with_slash = '{}/'.format(new_rule)
+            super(BaseBlueprint, self).route(new_rule, **options)(f)
+            super(BaseBlueprint, self).route(new_rule_with_slash, **options)(f)
+            return f
+        return decorator
+
 
 def safe(on_error: str = 'Algo salió mal..'):
     """Sends on_error message if func raises an exception"""

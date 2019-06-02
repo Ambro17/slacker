@@ -18,6 +18,26 @@ def test_index(client):
     }
 
 
+def test_retro_index(client):
+    response = client.get('/retro')
+
+    expected_response = {
+        'error': "You must specify a retro action.",
+        'commands': ['add_item', 'show_items', 'start_sprint', 'end_sprint', 'add_team']
+    }
+
+    assert response.status_code == 200
+    assert response.content_type == 'application/json'
+    assert response.json == expected_response
+
+    response = client.get('/retro/')
+
+    assert response.status_code == 200
+    assert response.content_type == 'application/json'
+    assert response.json == expected_response
+
+
+
 def test_create_user(db):
     """Test user factory."""
     user = UserFactory(first_name='juan', last_name='perez')
@@ -72,23 +92,24 @@ def test_create_retro_item(db):
 def test_user_has_one_or_more_teams(db):
     T1 = TeamFactory()
     T2 = TeamFactory()
-    U1 = UserFactory(teams=(T1, T2))
-    U2 = UserFactory()
 
-    assert U2.team is None
-    with pytest.raises(ValueError,
+    U2 = UserFactory()
+    with pytest.raises(User.OrphanUserException,
+                       match="User .* has no team!"):
+        U2.team
+
+    U1 = UserFactory(teams=(T1, T2))
+    with pytest.raises(User.MultipleTeamsException,
                        match='User is member of more than one team'):
         U1.team
 
+    assert U1.teams == [T1, T2]
     assert U1 in T1.members
     assert U1 in T2.members
 
     U3 = UserFactory()
     U4 = UserFactory()
     T3 = TeamFactory(members=(U3, U4))
-
-    assert U3 in T3.members
-    assert U4 in T3.members
 
     assert U3.team == T3
     assert U4.team == T3
