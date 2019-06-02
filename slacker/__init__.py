@@ -1,13 +1,13 @@
 import os
 
-from flask import Flask, request, make_response, jsonify
+from flask import Flask, make_response, jsonify
 from loguru import logger
 from slackclient import SlackClient
 from slackeventsapi import SlackEventAdapter
 
-from slacker.models.user import User
-from .blueprints import commands
 from .database import db
+from .models.user import User
+from .blueprints import commands
 
 
 def create_app(config_object='slacker.settings'):
@@ -18,15 +18,14 @@ def create_app(config_object='slacker.settings'):
     register_extensions(app)
     register_blueprints(app)
     register_error_handlers(app)
-
-    slack_client = SlackClient(os.environ["BOT_TOKEN"])
-    register_event_handlers(app, slack_client)
+    register_event_handlers(app)
 
     return app
 
 def register_extensions(app):
     """Register SQLAlchemy extension."""
     db.init_app(app)
+    # slack_event.init_app(app)
 
 
 def register_blueprints(app):
@@ -48,7 +47,8 @@ def register_error_handlers(app):
         return make_response(jsonify({'error': 'Server error. Sh*t happens.'}), 500)
 
 
-def register_event_handlers(app, slackcli):
+def register_event_handlers(app):
+    slackcli = SlackClient(os.environ["BOT_TOKEN"])
     events = SlackEventAdapter(os.environ["SLACK_SIGNATURE"],
                                endpoint="/events",
                                server=app)

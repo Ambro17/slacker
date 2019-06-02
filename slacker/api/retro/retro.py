@@ -1,17 +1,21 @@
 from datetime import datetime as d
 
-from slacker.database import S
-from models import Sprint, Team, RetroItem
+from sqlalchemy import exists
 
+from slacker import db
+from slacker.models import Sprint, Team, RetroItem
 
-def start_sprint(name, team):
-    sprint = Sprint.query.filter_by(team=team, running=True).one_or_none()
-    if sprint is not None:
-        return "Can't start sprint if there's already one in progress."
+S = db.session
 
-    the_team = Team.query.filter_by(name=team).one_or_none()
+def start_sprint(name, team_id):
+    the_team = Team.query.filter_by(id=team_id).one_or_none()
     if the_team is None:
         return 'Non-existing team'
+
+    sprint_q = Sprint.query.filter_by(team_id=team_id, running=True)
+    active_sprint = S.query(sprint_q.exists()).scalar()
+    if active_sprint:
+        return "Can't start sprint if there's already one in progress."
 
     sprint = Sprint(
         name=name,

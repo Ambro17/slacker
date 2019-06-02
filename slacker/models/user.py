@@ -9,11 +9,32 @@ class User(db.Model):
     real_name = db.Column(db.String)
     timezone = db.Column(db.String)
 
-    team_id = db.Column(db.Integer, db.ForeignKey('team.id'))
-    team = db.relationship("Team", back_populates='members')
     ovi_name = db.Column(db.String)
     ovi_token = db.Column(db.String)
 
+    teams = db.relationship(
+        "Team",
+        secondary='member',
+        back_populates='members'
+    )
+
+    @property
+    def team(self):
+        """Returns the team of the user.
+
+        * or None if it hasn't one
+        * or ValueError if s/he has more than one
+        """
+        team_quantity = len(self.teams)
+        if team_quantity == 1:
+            return self.teams[0]
+        elif team_quantity == 0:
+            return None
+        else:
+            raise ValueError(
+                'User is member of more than one team. %s' %
+                [str(t) for t in self.teams]
+            )
 
     def __repr__(self):
         return f"User(id={self.id!r}, user={self.user})"

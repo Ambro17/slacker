@@ -41,7 +41,11 @@ class Team(db.Model):
     name = db.Column(db.String)
 
     sprints = db.relationship("Sprint", backref='team')
-    members = db.relationship("User", back_populates='theteam')
+    members = db.relationship(
+        "User",
+        secondary='member',
+        back_populates='teams',
+    )
 
 
 class Sprint(db.Model):
@@ -79,3 +83,8 @@ class RetroItem(db.Model):
             self.datetime,
             self.sprint_id,
         )
+
+
+class Member(db.Model):
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), primary_key=True)
+    team_id = db.Column(db.Integer, db.ForeignKey('team.id'), primary_key=True)

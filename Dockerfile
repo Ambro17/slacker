@@ -9,5 +9,5 @@ RUN pip install -r requirements.txt
 
 EXPOSE 3000
 
-CMD ["gunicorn", "-w", "4", "application:app", "-b", "0.0.0.0:3000"]
+CMD ["gunicorn", "-w", "4", "slacker:create_app()", "-b", "0.0.0.0:3000"]
 

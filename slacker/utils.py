@@ -87,5 +87,5 @@ def send_message(text, msg_type='in_channel'):
     })
 
 
-def make_answer(response, status=200, response_type=JSON_TYPE):
+def reply(response, status=200, response_type=JSON_TYPE):
     return jsonify(response), status, response_type
