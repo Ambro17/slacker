@@ -5,10 +5,11 @@ from slacker.database import db
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    user = db.Column(db.String)
+    user_id = db.Column(db.String)
     first_name = db.Column(db.String)
     last_name = db.Column(db.String)
     real_name = db.Column(db.String)
+    display_name = db.Column(db.String)
     timezone = db.Column(db.String)
 
     ovi_name = db.Column(db.String)
@@ -32,7 +33,7 @@ class User(db.Model):
             return self.teams[0]
         elif team_quantity == 0:
             raise self.OrphanUserException(
-                'User (%r, %r) has no team!' % (self.user, self.first_name)
+                'User (%r, %r) has no team!' % (self.user_id, self.first_name)
             )
         else:
             raise self.MultipleTeamsException(
@@ -51,7 +52,7 @@ class User(db.Model):
             return None
 
     def __repr__(self):
-        return f"User(id={self.id!r}, user={self.user})"
+        return f"User(id={self.id!r}, user={self.user_id})"
 
     def __str__(self):
         if self.real_name:
@@ -62,16 +63,24 @@ class User(db.Model):
             return self.first_name or 'Unknown'
 
     @classmethod
-    def from_json(cls, raw_user, **kwargs):
+    def from_json(cls, user_resp):
+        """Flattens slack users.info json response and builds a user from it"""
+        # Flatten profile keys
+        user_resp.update(user_resp['profile'])
+
         raw_user = dict(
-            user=raw_user.get('id'),
-            first_name=raw_user.get('first_name'),
-            last_name=raw_user.get('last_name'),
-            real_name=raw_user.get('real_name'),
-            timezone=raw_user.get('timezone'),
+            user_id=user_resp.get('id'),
+            first_name=user_resp.get('first_name'),
+            last_name=user_resp.get('last_name'),
+            real_name=user_resp.get('real_name'),
+            timezone=user_resp.get('timezone'),
         )
-        raw_user.update(kwargs)
         return User(**raw_user)
+
+    @classmethod
+    def flatten_user(cls):
+        """unnest profile key """
+        pass
 
     class MultipleTeamsException(Exception):
         """Exception raised when tried to use .team property but multiple teams exist"""

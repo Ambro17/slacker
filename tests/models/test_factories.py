@@ -23,7 +23,7 @@ def test_retro_index(client):
 
     expected_response = {
         'error': "You must specify a retro action.",
-        'commands': ['add_item', 'show_items', 'start_sprint', 'end_sprint', 'add_team']
+        'commands': ['add_team', 'start_sprint', 'add_item', 'show_items', 'end_sprint']
     }
 
     assert response.status_code == 200

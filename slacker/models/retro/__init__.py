@@ -6,7 +6,7 @@ Models to support sprints with retroitems
          |+id      |
          |+name    |
          `---------`
-              1
+              *
               |
               |
     .---------+----------.
@@ -26,7 +26,7 @@ Models to support sprints with retroitems
     |               |  RetroItem |
     |               |------------|
     |               |+text       |
-    `------------ 1 |+user_id    |
+    `------------ * |+user_id    |
                     |+sprint_id  |
                     |+date       |
                     `------------`

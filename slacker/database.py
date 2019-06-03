@@ -4,6 +4,7 @@ db = SQLAlchemy()
 
 
 def init_db():
+    """Create all models on db"""
     import slacker.models
     from slacker import create_app
     app = create_app()

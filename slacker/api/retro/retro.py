@@ -9,11 +9,27 @@ S = db.session
 
 
 class TeamNotFoundException(Exception):
-    pass
+    """No team found under the required parameters"""
 
 
 class MultipleActiveSprintsException(Exception):
-    pass
+    """More than one sprint active. Scrum specifies one sprint at a time"""
+
+
+def add_team(name, users):
+    users = _build_users_from_mentions(users)
+    team = Team(name=name, members=users)
+    S.add(team)
+    S.commit()
+    return team.id
+
+
+def _build_users_from_mentions(users):
+
+    def build_user(u):
+        return u
+
+    return [build_user(u) for u in users]
 
 
 def start_sprint(name, team_id):

@@ -5,8 +5,9 @@ from loguru import logger
 from slackclient import SlackClient
 from slackeventsapi import SlackEventAdapter
 
-from slacker.blueprints import retro
 from .database import db
+from slacker import manage
+from slacker.blueprints import retroapp
 from .models.user import User
 from .blueprints import commands
 
@@ -18,24 +19,36 @@ def create_app(config_object='slacker.settings'):
 
     register_extensions(app)
     register_blueprints(app)
+    register_commands(app)
     register_error_handlers(app)
+
+    slackcli = SlackClient(os.environ["BOT_TOKEN"])
+    app.slack_cli = slackcli
     register_event_handlers(app)
 
     return app
 
+
 def register_extensions(app):
     """Register SQLAlchemy extension."""
     db.init_app(app)
-    # slack_event.init_app(app)
 
 
 def register_blueprints(app):
     """Register Flask blueprints."""
     app.register_blueprint(commands.bp)
-    app.register_blueprint(retro.bp)
+    app.register_blueprint(retroapp.bp)
+
+
+def register_commands(app):
+    """Register Click commands."""
+    app.cli.add_command(manage.test, 'test')
+    app.cli.add_command(manage.clean, 'clean')
+    app.cli.add_command(manage.init_db_command, 'init-db')
 
 
 def register_error_handlers(app):
+    """Register error handlers to respond nicely"""
     @app.errorhandler(400)
     def not_found(error):
         return make_response(jsonify({'error': 'Bad request'}), 400)
@@ -50,7 +63,7 @@ def register_error_handlers(app):
 
 
 def register_event_handlers(app):
-    slackcli = SlackClient(os.environ["BOT_TOKEN"])
+    """Register handlers for slack events subscriptions"""
     events = SlackEventAdapter(os.environ["SLACK_SIGNATURE"],
                                endpoint="/events",
                                server=app)
@@ -60,18 +73,18 @@ def register_event_handlers(app):
         """Save new users"""
         event = event_data['event']
         if event.get("subtype") != 'bot_message' and not event.get('text', '').startswith('/'):
-            slackcli.api_call("chat.postMessage",
+            app.slack_cli.api_call("chat.postMessage",
                                   channel=event['channel'],
                                   text=event['text'].upper())
-            resp = slackcli.api_call("users.info",
+            resp = app.slack_cli.api_call("users.info",
                                          user=event['user'])
-
             if resp['ok']:
                 user = resp['user']
-                u = db.session.query(User.user).filter_by(user=user['id']).one_or_none()
+                print(resp)
+                u = db.session.query(User.user).filter_by(user_id=user['id']).one_or_none()
                 if u is None:
                     try:
-                        db.session.add(User.from_json(user['profile'], user=user['id']))
+                        db.session.add(User.from_json(user))
                     except Exception:
                         logger.opt(exception=True).error('Error adding user from %s', resp)
                     else:
@@ -88,8 +101,8 @@ def register_event_handlers(app):
         emoji = event["reaction"]
         channel = event["item"]["channel"]
         text = ":%s:" % emoji
-        slackcli.api_call("chat.postMessage", channel=channel, text=text)
+        app.slack_cli.api_call("chat.postMessage", channel=channel, text=text)
 
     @events.on("error")
     def error_handler(err):
-        slackcli.api_call("chat.postMessage", channel=err['channel'], text='Sh*t happens')
+        app.slack_cli.api_call("chat.postMessage", channel=err['channel'], text='Sh*t happens')
