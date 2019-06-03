@@ -72,12 +72,12 @@ def register_event_handlers(app):
     def handle_message(event_data):
         """Save new users"""
         event = event_data['event']
-        if event.get("subtype") != 'bot_message' and not event.get('text', '').startswith('/'):
+        if event.get("subtype") != 'bot_message' and event.get('text') and not event.get('text', '').startswith('/'):
             app.slack_cli.api_call("chat.postMessage",
                                   channel=event['channel'],
-                                  text=event['text'].upper())
+                                  text=event.get['text'].upper())
             resp = app.slack_cli.api_call("users.info",
-                                         user=event['user'])
+                                          user=event['user'])
             if resp['ok']:
                 user = resp['user']
                 u = db.session.query(User.id).filter_by(user_id=user['id']).one_or_none()

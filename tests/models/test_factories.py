@@ -4,7 +4,7 @@ import pytest
 
 from slacker.models.retro import Team, RetroItem
 from slacker.models.user import User
-from tests.factorium import UserFactory, TeamFactory, RetroItemFactory, SprintFactory, MemberFactory
+from tests.factorium import UserFactory, TeamFactory, RetroItemFactory, SprintFactory
 
 
 def test_index(client):
@@ -37,20 +37,16 @@ def test_retro_index(client):
     assert response.json == expected_response
 
 
-
 def test_create_user(db):
     """Test user factory."""
-    user = UserFactory(first_name='juan', last_name='perez')
+    user = UserFactory(first_name='juan', last_name='perez', team=None)
     assert User.query.one() is user
     assert user.first_name == 'juan'
     assert user.last_name == 'perez'
-    assert user.teams == []
+    assert user.team is None
 
     team = TeamFactory(members=(user,))
-    assert user.teams == [team]
-    # Test shortcut when user has only one team
     assert user.team == team
-
 
 
 def test_create_team(db):
@@ -61,7 +57,7 @@ def test_create_team(db):
     assert not team.sprints
     assert not team.members
 
-    u = UserFactory(teams=(team,))
+    u = UserFactory(team=team)
     assert u in team.members
 
     s = SprintFactory(team=team)
@@ -89,27 +85,11 @@ def test_create_retro_item(db):
     assert ri in ri.sprint.retro_items
 
 
-def test_user_has_one_or_more_teams(db):
+def test_user_cant_have_two_teams(db):
     T1 = TeamFactory()
-    T2 = TeamFactory()
 
-    U2 = UserFactory()
-    with pytest.raises(User.OrphanUserException,
-                       match="User .* has no team!"):
-        U2.team
+    U1 = UserFactory(team=None)
+    assert U1.team is None
 
-    U1 = UserFactory(teams=(T1, T2))
-    with pytest.raises(User.MultipleTeamsException,
-                       match='User is member of more than one team'):
-        U1.team
-
-    assert U1.teams == [T1, T2]
+    U1.team = T1
     assert U1 in T1.members
-    assert U1 in T2.members
-
-    U3 = UserFactory()
-    U4 = UserFactory()
-    T3 = TeamFactory(members=(U3, U4))
-
-    assert U3.team == T3
-    assert U4.team == T3

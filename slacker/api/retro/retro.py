@@ -2,8 +2,8 @@ from datetime import datetime as d
 
 from loguru import logger
 
-from slacker import db, User
-from slacker.models import Sprint, Team, RetroItem
+from slacker.database import db
+from slacker.models import Sprint, Team, RetroItem, User
 
 S = db.session
 

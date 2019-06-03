@@ -1,5 +1,5 @@
 from .user import User
-from .retro import RetroItem, Team, Sprint, Member
+from .retro import RetroItem, Team, Sprint
 
 
 def get_or_create(S, Model, **kwargs):

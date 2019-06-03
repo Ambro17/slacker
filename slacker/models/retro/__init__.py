@@ -6,7 +6,7 @@ Models to support sprints with retroitems
          |+id      |
          |+name    |
          `---------`
-              *
+              1
               |
               |
     .---------+----------.
@@ -38,14 +38,10 @@ from slacker.database import db
 
 class Team(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String)
+    name = db.Column(db.String, unique=True)
 
     sprints = db.relationship("Sprint", backref='team')
-    members = db.relationship(
-        "User",
-        secondary='member',
-        back_populates='teams',
-    )
+    members = db.relationship("User", back_populates='team')
 
     @property
     def active_sprint(self):
@@ -88,7 +84,3 @@ class RetroItem(db.Model):
             self.sprint_id,
         )
 
-
-class Member(db.Model):
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), primary_key=True)
-    team_id = db.Column(db.Integer, db.ForeignKey('team.id'), primary_key=True)

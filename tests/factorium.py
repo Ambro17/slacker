@@ -4,7 +4,7 @@ import factory.fuzzy
 from factory.alchemy import SQLAlchemyModelFactory
 
 from slacker.database import db
-from slacker.models.retro import Sprint, Team, RetroItem, Member
+from slacker.models.retro import Sprint, Team, RetroItem
 from slacker.models.user import User
 
 
@@ -43,22 +43,7 @@ class UserFactory(BaseFactory):
     id = factory.sequence(lambda n: n + 1)
     first_name = factory.Faker('first_name')
     last_name = factory.Faker('last_name')
-
-    @factory.post_generation
-    def teams(self, create, extracted, **kwargs):
-        if not create:
-            # Simple build, do nothing.
-            return
-
-        if extracted:
-            # A list of groups were passed in, use them
-            for team in extracted:
-                self.teams.append(team)
-
-
-class MemberFactory(BaseFactory):
-    class Meta:
-        model = Member
+    team = factory.SubFactory(TeamFactory)
 
 
 class SprintFactory(BaseFactory):
