@@ -62,7 +62,8 @@ class Sprint(db.Model):
 class RetroItem(db.Model):
     id = db.Column(db.Integer, primary_key=True)
 
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    author_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    author = db.Column(db.String)
     text = db.Column(db.String)
     datetime = db.Column(db.TIMESTAMP(timezone=True))
 
@@ -77,10 +78,9 @@ class RetroItem(db.Model):
         return self.sprint.team
 
     def __repr__(self):
-        return "RetroItem(user_id='%s', text='%s', datetime='%s', sprint_id='%s')" % (
-            self.user_id,
+        return "RetroItem(author='%s', text='%s', datetime='%s', sprint_id='%s')" % (
+            self.author,
             self.text,
             self.datetime,
             self.sprint_id,
         )
-

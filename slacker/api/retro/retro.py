@@ -54,17 +54,18 @@ def start_sprint(name, team_id):
     return sprint.id
 
 
-def end_sprint(name):
-    sprint = _get_sprint(name=name)
+def end_sprint(team_id):
+    sprint = _get_sprint(team_id=team_id)
     sprint.running = False
     S.commit()
     return sprint.id
 
 
-def add_item(sprint_id, user_id, text):
+def add_item(sprint_id, user_id, user_name, text):
     sprint = _get_sprint(id=sprint_id)
     item = RetroItem(
-        user_id=user_id,
+        author_id=user_id,
+        author=user_name,
         text=text,
         datetime=d.utcnow(),
         sprint_id=sprint.id,

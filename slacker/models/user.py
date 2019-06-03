@@ -55,13 +55,13 @@ class ResponseNotOkException(Exception):
     """Raised when a call to slack api returned a non-ok status"""
 
 
-def get_or_create_user(slack_cli, user_id):
+def get_or_create_user(cli, user_id):
     """Returns the user_id, creating it if necessary"""
     user = db.session.query(User).filter_by(user_id=user_id).one_or_none()
     if user is not None:
         return user
 
-    resp = slack_cli.api_call("users.info", user=user_id)
+    resp = cli.api_call("users.info", user=user_id)
     if resp['ok']:
         new_user = User.from_json(resp['user'])
         db.session.add(new_user)

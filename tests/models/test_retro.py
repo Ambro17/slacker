@@ -20,12 +20,12 @@ def test_start_sprint(db, f):
 
 
 def test_end_sprint(db, f):
-    t = f.TeamFactory()
-    sprint_id = start_sprint('test sprint', t.id)
+    team = f.TeamFactory()
+    sprint_id = start_sprint('test sprint', team.id)
     db_sprint = Sprint.query.one()
     assert sprint_id == db_sprint.id
 
-    end_sprint('test sprint')
+    end_sprint(team.id)
     db_sprint = Sprint.query.get(sprint_id)
     assert db_sprint is not None
     assert db_sprint.running is False
@@ -36,8 +36,8 @@ def test_add_retroitem(db, f):
     user = f.UserFactory(team=team)
 
     sprint_id = start_sprint('test sprint', team.id)
-    item_id = add_item(user.sprint.id, user.id, 'hay que mejorar los tests')
-    item_id2 = add_item(user.sprint.id, user.id, 'hay que empezar a hacer TDD')
+    item_id = add_item(user.sprint.id, user.id, user.real_name, 'hay que mejorar los tests')
+    item_id2 = add_item(user.sprint.id, user.id, user.real_name, 'hay que empezar a hacer TDD')
 
     S = db.session
     db_items = S.query(RetroItem.id).filter_by(sprint_id=sprint_id).all()
@@ -50,7 +50,7 @@ def test_add_retroitem_fails_if_no_active_sprint(db, f):
 
     assert user.sprint is None
     with pytest.raises(AttributeError, match="'NoneType' object has no attribute 'id'"):
-        add_item(user.sprint.id, user.id, 'foo')
+        add_item(user.sprint.id, user.id, user.real_name, 'foo')
 
 
 def test_add_retroitem_fails_if_expired_sprint(db, f):
@@ -61,7 +61,7 @@ def test_add_retroitem_fails_if_expired_sprint(db, f):
     _id_ = sprint.id
     with pytest.raises(InactiveSprintException,
                        match="No active sprint with specified parameters"):
-        add_item(sprint.id, user.id, 'foo')
+        add_item(sprint.id, user.id, user.real_name, 'foo')
 
 
 def test_add_retroitem_fails_if_bad_sprint_id(db, f):
@@ -70,7 +70,7 @@ def test_add_retroitem_fails_if_bad_sprint_id(db, f):
     _id_ = 1
     with pytest.raises(SprintNotFoundException,
                        match="Sprint .* does not exist."):
-        add_item(_id_, user.id, 'foo')
+        add_item(_id_, user.id, user.real_name, 'foo')
 
 
 def test_show_retroitems_per_team(db, f):
@@ -78,9 +78,9 @@ def test_show_retroitems_per_team(db, f):
     user = f.UserFactory(team=team)
     spid = start_sprint('test sprint', team.id)
 
-    item_id_1 = add_item(user.sprint.id, user.id, 'un item')
-    item_id_2 = add_item(user.sprint.id, user.id, 'otro item')
-    item_id_3 = add_item(user.sprint.id, user.id, 'otro más')
+    item_id_1 = add_item(user.sprint.id, user.id, user.real_name, 'un item')
+    item_id_2 = add_item(user.sprint.id, user.id, user.real_name, 'otro item')
+    item_id_3 = add_item(user.sprint.id, user.id, user.real_name, 'otro más')
 
     items = get_retro_items(spid)
     items_ids = [item.id for item in items]
@@ -96,7 +96,7 @@ def test_cant_have_two_active_sprints(db, f):
     assert sp is not None
     assert sp.running is True
 
-    end_sprint('sprint name')
+    end_sprint(team.id)
 
     sp = Sprint.query.one_or_none()
     assert sp is not None

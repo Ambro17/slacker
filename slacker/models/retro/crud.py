@@ -9,7 +9,7 @@ def add_team_member(user_id, team_id):
     db.session.commit()
 
 
-def add_team_members(cli, user_ids, team_id):
+def add_team_members(user_ids, team_id):
     for user_id in user_ids:
         add_team_member(user_id, team_id)
 
