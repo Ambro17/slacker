@@ -80,8 +80,7 @@ def register_event_handlers(app):
                                          user=event['user'])
             if resp['ok']:
                 user = resp['user']
-                print(resp)
-                u = db.session.query(User.user).filter_by(user_id=user['id']).one_or_none()
+                u = db.session.query(User.id).filter_by(user_id=user['id']).one_or_none()
                 if u is None:
                     try:
                         db.session.add(User.from_json(user))
