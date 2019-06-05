@@ -1,10 +1,9 @@
 from datetime import datetime as d
 
-import pytest
-
+from slacker.models.aws import OwnedVM
 from slacker.models.retro import Team, RetroItem
 from slacker.models.user import User
-from tests.factorium import UserFactory, TeamFactory, RetroItemFactory, SprintFactory
+from tests.factorium import UserFactory, TeamFactory, RetroItemFactory, SprintFactory, VMFactory, OwnedVMFactory
 
 
 def test_index(client):
@@ -93,3 +92,15 @@ def test_user_cant_have_two_teams(db):
 
     U1.team = T1
     assert U1 in T1.members
+
+
+def test_user_can_have_many_vms(db):
+    user = UserFactory()
+    vm = VMFactory()
+    vm_2 = VMFactory()
+
+    OwnedVMFactory(user_id=user.id, vm_id=vm.id)
+    OwnedVMFactory(user_id=user.id, vm_id=vm_2.id)
+    db.session.flush()
+
+    assert user.vms == [vm, vm_2]

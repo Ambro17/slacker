@@ -1,5 +1,6 @@
 from .user import User
 from .retro import RetroItem, Team, Sprint
+from .aws import VM, OwnedVM
 
 
 def get_or_create(S, Model, **kwargs):

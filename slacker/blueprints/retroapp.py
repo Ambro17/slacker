@@ -1,14 +1,14 @@
 import re
 
+import os
 from flask import request, current_app as the_app
-from loguru import logger
 from sqlalchemy import func
 
 from slacker.api.retro.retro import start_sprint, add_item, end_sprint
 from slacker.database import db
 from slacker.models import get_or_create, Team, Sprint, RetroItem
 from slacker.models.retro.crud import add_team_members, get_team_members
-from slacker.models.user import User, get_or_create_user
+from slacker.models.user import get_or_create_user
 from slacker.utils import reply, BaseBlueprint, get_or_create_user_from_response
 
 bp = BaseBlueprint('retro', __name__, url_prefix='/retro')
@@ -103,7 +103,7 @@ def add_item_callback() -> str:
         if sprint is None:
             msg = "No active sprint"
         else:
-            add_item(sprint.id, user.id, item)
+            add_item(sprint.id, user.id, user.name, item)
             msg = 'Item saved :check:'
 
     return msg

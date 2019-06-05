@@ -1,5 +1,8 @@
-from loguru import logger
 from slacker.database import db
+
+
+class ResponseNotOkException(Exception):
+    """Raised when a call to slack api returned a non-ok status"""
 
 
 class User(db.Model):
@@ -15,7 +18,8 @@ class User(db.Model):
     ovi_token = db.Column(db.String)
 
     team_id = db.Column(db.Integer, db.ForeignKey('team.id'))
-    team = db.relationship("Team", back_populates='members')
+    team = db.relationship('Team', back_populates='members')
+    vms = db.relationship('VM', secondary='ownedvm')
 
     @property
     def sprint(self):
@@ -49,10 +53,6 @@ class User(db.Model):
             timezone=user_resp.get('timezone'),
         )
         return User(**raw_user)
-
-
-class ResponseNotOkException(Exception):
-    """Raised when a call to slack api returned a non-ok status"""
 
 
 def get_or_create_user(cli, user_id):

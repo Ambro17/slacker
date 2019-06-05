@@ -4,12 +4,14 @@ from flask import Flask, make_response, jsonify
 from loguru import logger
 from slackclient import SlackClient
 from slackeventsapi import SlackEventAdapter
+from raven.contrib.flask import Sentry
 
+from .manage import test, clean, init_db_command
 from .database import db
-from slacker import manage
-from slacker.blueprints import retroapp
 from .models.user import User
-from .blueprints import commands
+from .blueprints import commands, retroapp
+
+sentry = Sentry()
 
 
 def create_app(config_object='slacker.settings'):
@@ -22,8 +24,7 @@ def create_app(config_object='slacker.settings'):
     register_commands(app)
     register_error_handlers(app)
 
-    slackcli = SlackClient(os.environ["BOT_TOKEN"])
-    app.slack_cli = slackcli
+    app.slack_cli = SlackClient(os.environ["BOT_TOKEN"])
     register_event_handlers(app)
 
     return app
@@ -32,6 +33,7 @@ def create_app(config_object='slacker.settings'):
 def register_extensions(app):
     """Register SQLAlchemy extension."""
     db.init_app(app)
+    sentry.init_app(app, dsn=os.environ['SENTRY_DSN'])
 
 
 def register_blueprints(app):
@@ -42,9 +44,9 @@ def register_blueprints(app):
 
 def register_commands(app):
     """Register Click commands."""
-    app.cli.add_command(manage.test, 'test')
-    app.cli.add_command(manage.clean, 'clean')
-    app.cli.add_command(manage.init_db_command, 'init-db')
+    app.cli.add_command(test, 'test')
+    app.cli.add_command(clean, 'clean')
+    app.cli.add_command(init_db_command, 'init-db')
 
 
 def register_error_handlers(app):
@@ -74,8 +76,8 @@ def register_event_handlers(app):
         event = event_data['event']
         if event.get("subtype") != 'bot_message' and event.get('text') and not event.get('text', '').startswith('/'):
             app.slack_cli.api_call("chat.postMessage",
-                                  channel=event['channel'],
-                                  text=event.get['text'].upper())
+                                   channel=event['channel'],
+                                   text=event['text'].upper())
             resp = app.slack_cli.api_call("users.info",
                                           user=event['user'])
             if resp['ok']:
