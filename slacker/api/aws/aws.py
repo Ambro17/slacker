@@ -1,6 +1,6 @@
 from loguru import logger
 
-from slacker.models import OwnedVM, VM
+from slacker.models import VM, VMOwnership
 from slacker.models.user import get_or_create_user
 
 
@@ -33,21 +33,18 @@ def save_user_vms(S, cli, user_id, ovi_name, ovi_token, user_vms):
     user.ovi_name = ovi_name
     user.ovi_token = ovi_token
 
-    for alias, vm_id in user_vms:
-        vm= VM.query.get(vm_id) or VM(vm_id)
-        owned_vm = OwnedVM(
-            vm_id=vm.id,
-            vm_alias=alias,
-            user_id=user.id,
-            user_name=user.name,
-
-        )
+    for alias, vm_id in user_vms.items():
+        vm = VM.query.get(vm_id) or VM(id=vm_id)
+        owned_vm = VMOwnership(vm=vm, user=user, alias=alias)
+        #S.add(vm)
         S.add(owned_vm)
 
     S.commit()
+    assert 1
+    assert 2
 
 
-def show_user_vms():
+def show_user_vms(user):
     pass
 
 
@@ -56,4 +53,8 @@ def start_vm(name):
 
 
 def stop_vm(name):
+    pass
+
+
+def redeploy_vm(name, image):
     pass

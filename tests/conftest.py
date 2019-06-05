@@ -37,6 +37,14 @@ def client(app):
 
 
 @pytest.fixture
+def slack_cli(mocker):
+    """A test client for the app."""
+    cli = mocker.MagicMock()
+    mocker.patch.object(cli, 'api_call')
+    return cli
+
+
+@pytest.fixture
 def runner(app):
     """A test runner for the app's Click commands."""
     return app.test_cli_runner()

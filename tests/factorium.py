@@ -4,7 +4,7 @@ import factory.fuzzy
 from factory.alchemy import SQLAlchemyModelFactory
 
 from slacker.database import db
-from slacker.models.aws import VM, OwnedVM
+from slacker.models.aws import VM, VMOwnership
 from slacker.models.retro import Sprint, Team, RetroItem
 from slacker.models.user import User
 
@@ -44,7 +44,7 @@ class UserFactory(BaseFactory):
     id = factory.sequence(lambda n: n + 1)
     first_name = factory.Faker('first_name')
     last_name = factory.Faker('last_name')
-#    team = factory.SubFactory(TeamFactory)
+    team = factory.SubFactory(TeamFactory)
 
 
 class SprintFactory(BaseFactory):
@@ -77,4 +77,4 @@ class VMFactory(BaseFactory):
 
 class OwnedVMFactory(BaseFactory):
     class Meta:
-        model = OwnedVM
+        model = VMOwnership

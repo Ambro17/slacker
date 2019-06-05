@@ -19,7 +19,6 @@ class User(db.Model):
 
     team_id = db.Column(db.Integer, db.ForeignKey('team.id'))
     team = db.relationship('Team', back_populates='members')
-    vms = db.relationship('VM', secondary='ownedvm')
 
     @property
     def sprint(self):
