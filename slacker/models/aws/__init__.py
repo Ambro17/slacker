@@ -11,5 +11,5 @@ class VMOwnership(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), primary_key=True)
     vm_id = db.Column(db.String, db.ForeignKey('vm.id'), primary_key=True)
     alias = db.Column(db.String)
-    user = db.relationship("User", backref=db.backref("owned_vms"))
-    vm = db.relationship("VM", backref=db.backref("owners"))
+    user = db.relationship("User", backref=db.backref("owned_vms", cascade='all, delete-orphan'))
+    vm = db.relationship("VM", backref=db.backref("owners", cascade='all, delete-orphan'))

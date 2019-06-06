@@ -42,6 +42,7 @@ class UserFactory(BaseFactory):
         model = User
 
     id = factory.sequence(lambda n: n + 1)
+    user_id = factory.sequence(lambda n: f'U{n}' )
     first_name = factory.Faker('first_name')
     last_name = factory.Faker('last_name')
     team = factory.SubFactory(TeamFactory)

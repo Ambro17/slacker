@@ -28,20 +28,34 @@ def load_vms_info(vms):
     return vms_info
 
 
+class DuplicateAliasException(Exception):
+    """Raised if user wants to save a vm under an alias that already maps to one oh her/his vms"""
+
+
 def save_user_vms(S, cli, user_id, ovi_name, ovi_token, user_vms):
     user = get_or_create_user(cli, user_id)
-    user.ovi_name = ovi_name
-    user.ovi_token = ovi_token
+
+    existing_user_vm_aliases = {vm.alias for vm in user.owned_vms}
+    if any(alias in existing_user_vm_aliases for alias in user_vms):
+        raise DuplicateAliasException(
+            f"One of your VM aliases conflicts with an existing one. "
+            f"Try a different name or remove all vms and readd the ones you want to keep"
+        )
 
     for alias, vm_id in user_vms.items():
         vm = VM.query.get(vm_id) or VM(id=vm_id)
-        owned_vm = VMOwnership(vm=vm, user=user, alias=alias)
-        #S.add(vm)
-        S.add(owned_vm)
+        S.add(VMOwnership(vm=vm, user=user, alias=alias))
+
+    user.ovi_name = ovi_name
+    user.ovi_token = ovi_token
 
     S.commit()
-    assert 1
-    assert 2
+
+
+def delete_user_vms(S, cli, user_id):
+    user = get_or_create_user(cli, user_id)
+    user.owned_vms = []
+    S.commit()
 
 
 def show_user_vms(user):
