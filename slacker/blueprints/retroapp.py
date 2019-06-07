@@ -1,10 +1,12 @@
 import re
+import traceback
 
 from flask import request, current_app as the_app
-from sqlalchemy import func
+from loguru import logger
 
 from slacker.api.retro.retro import start_sprint, add_item, end_sprint
 from slacker.database import db
+from slacker.exceptions import SlackerException, RetroAppException
 from slacker.models import get_or_create, Team, Sprint, RetroItem
 from slacker.models.retro.crud import add_team_members, get_team_members
 from slacker.models.user import get_or_create_user
@@ -25,10 +27,6 @@ def index():
         'error': "You must specify a retro action.",
         'commands': ['add_team', 'start_sprint', 'add_item', 'show_items', 'end_sprint']
     })
-
-
-class SlackerException(Exception):
-    """Base exception for app exceptions"""
 
 
 @bp.route('/add_team', methods=('POST', ))
@@ -57,13 +55,21 @@ def add_team() -> str:
 
         return user_ids
 
-    team_name, members = read_team_members(text)
+    try:
+        team_name, members = read_team_members(text)
+    except ValueError:
+        return ':no_entry_sign: Bad usage. Specify team name and members: `/add_team team_name @member1 @member2`'
+
     team = get_or_create(db.session, Team, name=team_name)
     user_ids = get_user_id_from_members(members)
+
+    if not user_ids:
+        return ':no_entry_sign: Bad usage. You must add at least one member (tag them with @username)'
+
     add_team_members(user_ids, team.id)
 
     members_friendly = ' '.join(m['name'] for m in members)
-    return f'Success :check:\n{team_name} was created. Members: {members_friendly}'
+    return f'Success :check:\n`{team_name}` team was created. Members: {members_friendly}'
 
 
 @bp.route('/start_sprint', methods=('POST',))
@@ -100,7 +106,7 @@ def add_item_callback() -> str:
     else:
         sprint = Sprint.query.filter_by(running=True, team_id=team.id).one_or_none()
         if sprint is None:
-            msg = "No active sprint"
+            msg = "No active sprint. Start one to store new retro items"
         else:
             add_item(sprint.id, user.id, user.first_name, item)
             msg = 'Item saved :check:'
@@ -118,14 +124,18 @@ def show_items() -> str:
     else:
         sprint = Sprint.query.filter_by(running=True, team_id=team.id).one_or_none()
         if sprint is None:
-            msg = "No active sprint"
+            msg = "There's no active sprint. Start one to store and show retro items"
         else:
             items = db.session.query(
                 RetroItem.author,
                 RetroItem.text,
                 RetroItem.datetime
-            ).filter_by(sprint_id=sprint.id)
-            msg = '\n'.join(f'*{x.author}* | {x.text} | _{format_datetime(x.datetime)}_' for x in items)
+            ).filter_by(sprint_id=sprint.id).all()
+            if not items:
+                msg = 'No saved items yet'
+            else:
+                msg = f'`{sprint.name.capitalize()}` items:\n'
+                msg += '\n'.join(f'*{x.author}* | {x.text} | _{format_datetime(x.datetime)}_' for x in items)
 
     return msg
 
@@ -168,11 +178,36 @@ def team_members() -> str:
 @bp.route('/help', methods=('POST', ))
 def help():
     msg = """
-Simple app for managing retroitems.
 Teams have members. Add them with `/add_team my_team_name @member1 @member2 ...`
 Teams have sprints. Start one with `/start_sprint my first sprint`
-Each sprint can have many retro items.\nAdd them with `/add_retro_item we need to improve our estimations`
+Each sprint can have many retro items,\nadd them with `/add_retro_item we need to improve our estimations`
 If you want to see current retro items write `/show_retro_items`
 If you have already seen them the retro meeting has ended you can write `/end_sprint` and start over
     """
     return msg
+
+
+@bp.errorhandler(400)
+def not_found(error):
+    return reply({'text': 'Bad request'})
+
+
+@bp.errorhandler(404)
+def not_found(error):
+    return reply({'text': 'Resource not found'})
+
+
+@bp.errorhandler(500)
+def not_found(error):
+    if isinstance(error, RetroAppException):
+        # Handle expected exception (a little bit of an oximoron)
+        resp = {'text': f':anger:  {str(error)}'}
+    else:
+        exception_text = traceback.format_exc()
+        logger.error(f'Error: {repr(error)}\nTraceback:\n{exception_text}')
+        resp = {
+            'text': f'You hurt the bot :face_with_head_bandage:.. Be gentle when speaking with him.\n'
+                    f'Error: {repr(error)}'
+        }
+
+    return reply(resp)

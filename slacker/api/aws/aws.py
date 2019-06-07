@@ -1,5 +1,6 @@
 from loguru import logger
 
+from slacker.exceptions import SlackerException
 from slacker.models import VM, VMOwnership
 from slacker.models.user import get_or_create_user
 
@@ -28,7 +29,7 @@ def load_vms_info(vms):
     return vms_info
 
 
-class DuplicateAliasException(Exception):
+class DuplicateAliasException(SlackerException):
     """Raised if user wants to save a vm under an alias that already maps to one oh her/his vms"""
 
 

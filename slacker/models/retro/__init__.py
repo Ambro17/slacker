@@ -51,7 +51,7 @@ class Team(db.Model):
 class Sprint(db.Model):
     id = db.Column(db.Integer, primary_key=True)
 
-    name = db.Column(db.String, unique=True)
+    name = db.Column(db.String)
     start_date = db.Column(db.TIMESTAMP(timezone=True))
     team_id = db.Column(db.Integer, db.ForeignKey('team.id'))
     running = db.Column(db.Boolean, default=True)

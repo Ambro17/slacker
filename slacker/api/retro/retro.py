@@ -1,35 +1,18 @@
 from datetime import datetime as d
 
-from loguru import logger
-
 from slacker.database import db
+from slacker.exceptions import RetroAppException
 from slacker.models import Sprint, Team, RetroItem, User
 
 S = db.session
 
 
-class TeamNotFoundException(Exception):
+class TeamNotFoundException(RetroAppException):
     """No team found under the required parameters"""
 
 
-class MultipleActiveSprintsException(Exception):
+class MultipleActiveSprintsException(RetroAppException):
     """More than one sprint active. Scrum specifies one sprint at a time"""
-
-
-def add_team(name, users):
-    users = _build_users_from_mentions(users)
-    team = Team(name=name, members=users)
-    S.add(team)
-    S.commit()
-    return team.id
-
-
-def _build_users_from_mentions(users):
-
-    def build_user(u):
-        return u
-
-    return [build_user(u) for u in users]
 
 
 def start_sprint(name, team_id):
@@ -41,7 +24,7 @@ def start_sprint(name, team_id):
     active_sprint = S.query(sprint_query.exists()).scalar()
     if active_sprint:
         raise MultipleActiveSprintsException(
-            "There can only be one active sprint per team at a time"
+            "There can only be one active sprint per team at a time. End the current sprint before starting a new one."
         )
 
     sprint = Sprint(
@@ -55,7 +38,7 @@ def start_sprint(name, team_id):
 
 
 def end_sprint(team_id):
-    sprint = _get_sprint(team_id=team_id)
+    sprint = _get_sprint(team_id=team_id, running=True)
     sprint.running = False
     S.commit()
     return sprint.name
@@ -81,11 +64,11 @@ def get_retro_items(sprint_id):
     return items
 
 
-class SprintNotFoundException(Exception):
+class SprintNotFoundException(RetroAppException):
     """Raised when we try to reference a sprint that doesn't exist"""
 
 
-class InactiveSprintException(Exception):
+class InactiveSprintException(RetroAppException):
     """There's no active sprint to apply this action to"""
 
 

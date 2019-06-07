@@ -1,7 +1,8 @@
 from slacker.database import db
+from slacker.exceptions import SlackerException
 
 
-class ResponseNotOkException(Exception):
+class ResponseNotOkException(SlackerException):
     """Raised when a call to slack api returned a non-ok status"""
 
 
@@ -66,6 +67,6 @@ def get_or_create_user(cli, user_id):
         new_user = User.from_json(resp['user'])
         db.session.add(new_user)
     else:
-        raise ResponseNotOkException("Slack api did not respond OK")
+        raise ResponseNotOkException("Slack api did not respond OK when requesting user info")
 
     return new_user
