@@ -1,6 +1,6 @@
 import json
 
-from flask import Blueprint, current_app as the_app, request, make_response
+from flask import Blueprint, current_app as the_app, request, make_response, Response
 from loguru import logger
 
 from slacker.api.aws.aws import load_vms_info, save_user_vms
@@ -8,7 +8,7 @@ from slacker.api.feriados import get_feriadosarg
 from slacker.api.hoypido import get_hoypido
 from slacker.api.subte import get_subte
 from slacker.database import db
-from slacker.utils import reply
+from slacker.utils import reply, command_response
 
 bp = Blueprint('commands', __name__)
 
@@ -22,21 +22,21 @@ def index():
 
 
 @bp.route('/feriados', methods=('GET', 'POST'))
-def feriados() -> str:
+def feriados() -> Response:
     response = get_feriadosarg()
-    return response
+    return command_response(response)
 
 
 @bp.route('/hoypido', methods=('GET', 'POST'))
 def hoypido() -> str:
-    response = get_hoypido()
-    return response
+    menus = get_hoypido()
+    return command_response(menus)
 
 
 @bp.route('/subte', methods=('GET', 'POST'))
 def subte() -> str:
-    response = get_subte()
-    return response
+    status = get_subte()
+    return command_response(status)
 
 
 @bp.route('/aws', methods=('GET', 'POST'))

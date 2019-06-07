@@ -58,7 +58,7 @@ def end_sprint(team_id):
     sprint = _get_sprint(team_id=team_id)
     sprint.running = False
     S.commit()
-    return sprint.id
+    return sprint.name
 
 
 def add_item(sprint_id, user_id, user_name, text):

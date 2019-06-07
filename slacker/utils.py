@@ -3,6 +3,7 @@ import unicodedata
 from functools import wraps
 
 import requests
+import time
 from bs4 import BeautifulSoup
 from flask import jsonify, Blueprint
 from loguru import logger
@@ -112,31 +113,19 @@ def reply(response, status=200, response_type=JSON_TYPE):
     return jsonify(response), status, response_type
 
 
-def get_or_create_user_from_response(user_info: dict, user_id: str) -> str:
-    """Adds user if response was ok
+def command_response(text):
+    response = {
+        'text': text,
+        "attachments": [
+            {
+                "footer": "Cuervot",
+                "footer_icon": "https://i.imgur.com/rOpT9uS.png",
+                "ts": time.time()
+            }
+        ]
+    }
+    return reply(response)
 
-    user_info (dict): {'ok': <boolean>, 'user': <user_dict>}
-    user_id (str): user identifier (i.e U12345)
-    """
-    if not user_info['ok']:
-        raise Exception("Error getting info for %s" % user_id)
 
-    user = user_info['user']
-    u = db.session.query(User).filter_by(user_id=user['id']).one_or_none()
-    if u is None:
-        logger.info('Adding new user with id %s' % user_id)
-        try:
-            new_user = User.from_json(user)
-            db.session.add(new_user)
-        except Exception:
-            logger.opt(exception=True).error('Error adding user from %s', user)
-            raise
-        else:
-            db.session.commit()
-            the_user_id = new_user.id
-            logger.info('User %s added to db with id %s' % (user['id'], new_user.id))
-    else:
-        the_user_id = u.id
-        logger.info('User %s already on db.' % user_id)
-
-    return the_user_id
+def format_datetime(datetim, default='%d/%m %H:%M'):
+    return datetim.strftime(default)

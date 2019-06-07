@@ -76,6 +76,6 @@ class VMFactory(BaseFactory):
     id = factory.fuzzy.FuzzyText(length=20)
 
 
-class OwnedVMFactory(BaseFactory):
+class VMOwnershipFactory(BaseFactory):
     class Meta:
         model = VMOwnership

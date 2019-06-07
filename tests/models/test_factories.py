@@ -1,9 +1,9 @@
 from datetime import datetime as d
 
-from slacker.models.aws import OwnedVM
+from slacker.models.aws import VMOwnership
 from slacker.models.retro import Team, RetroItem
 from slacker.models.user import User
-from tests.factorium import UserFactory, TeamFactory, RetroItemFactory, SprintFactory, VMFactory, OwnedVMFactory
+from tests.factorium import UserFactory, TeamFactory, RetroItemFactory, SprintFactory, VMFactory, VMOwnershipFactory
 
 
 def test_index(client):
@@ -99,8 +99,8 @@ def test_user_can_have_many_vms(db):
     vm = VMFactory()
     vm_2 = VMFactory()
 
-    OwnedVMFactory(user_id=user.id, vm_id=vm.id)
-    OwnedVMFactory(user_id=user.id, vm_id=vm_2.id)
+    my_vm = VMOwnershipFactory(user_id=user.id, vm_id=vm.id)
+    my_other_vm = VMOwnershipFactory(user_id=user.id, vm_id=vm_2.id)
     db.session.flush()
 
-    assert user.vms == [vm, vm_2]
+    assert user.owned_vms == [my_vm, my_other_vm]

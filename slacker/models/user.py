@@ -49,6 +49,7 @@ class User(db.Model):
             first_name=user_resp.get('first_name'),
             last_name=user_resp.get('last_name'),
             real_name=user_resp.get('real_name'),
+            display_name=user_resp.get('display_name'),
             timezone=user_resp.get('timezone'),
         )
         return User(**raw_user)

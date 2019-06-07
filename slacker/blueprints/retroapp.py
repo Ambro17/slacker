@@ -1,6 +1,5 @@
 import re
 
-import os
 from flask import request, current_app as the_app
 from sqlalchemy import func
 
@@ -9,7 +8,7 @@ from slacker.database import db
 from slacker.models import get_or_create, Team, Sprint, RetroItem
 from slacker.models.retro.crud import add_team_members, get_team_members
 from slacker.models.user import get_or_create_user
-from slacker.utils import reply, BaseBlueprint, get_or_create_user_from_response
+from slacker.utils import reply, BaseBlueprint, format_datetime
 
 bp = BaseBlueprint('retro', __name__, url_prefix='/retro')
 
@@ -54,7 +53,7 @@ def add_team() -> str:
         user_ids = []
         for u in users:
             user = get_or_create_user(the_app.slack_cli, u['user_id'])
-            user_ids.append(user.id)
+            user_ids.append(user.user_id)
 
         return user_ids
 
@@ -64,7 +63,7 @@ def add_team() -> str:
     add_team_members(user_ids, team.id)
 
     members_friendly = ' '.join(m['name'] for m in members)
-    return f'Success! {team_name} was created. Members: {members_friendly}'
+    return f'Success :check:\n{team_name} was created. Members: {members_friendly}'
 
 
 @bp.route('/start_sprint', methods=('POST',))
@@ -103,7 +102,7 @@ def add_item_callback() -> str:
         if sprint is None:
             msg = "No active sprint"
         else:
-            add_item(sprint.id, user.id, user.name, item)
+            add_item(sprint.id, user.id, user.first_name, item)
             msg = 'Item saved :check:'
 
     return msg
@@ -124,9 +123,9 @@ def show_items() -> str:
             items = db.session.query(
                 RetroItem.author,
                 RetroItem.text,
-                func.to_char(RetroItem.datetime, 'DD-MM HH24:MI'),
+                RetroItem.datetime
             ).filter_by(sprint_id=sprint.id)
-            msg = '\n'.join(f'*{x.author}* | {x.text} | _{x.datetime}_' for x in items)
+            msg = '\n'.join(f'*{x.author}* | {x.text} | _{format_datetime(x.datetime)}_' for x in items)
 
     return msg
 
@@ -140,8 +139,8 @@ def end_sprint_callback() -> str:
     if team is None:
         msg = "You are not part of any team. Action not allowed"
     else:
-        end_sprint(team.id)
-        msg = f"Sprint `{sprint_name}` watch has ended :check:"
+        sprint_name = end_sprint(team.id)
+        msg = f"`{sprint_name}'s` watch has ended :check:"
 
     return msg
 
@@ -150,13 +149,30 @@ def end_sprint_callback() -> str:
 def team_members() -> str:
     team_name = request.form.get('text')
     if not team_name:
-        return 'Bad usage. i.e: /team_members <team>'
+        user = get_or_create_user(the_app.slack_cli, request.form.get('user_id'))
+        if user.team is not None:
+            team_name = user.team.name
+        else:
+            return 'Bad usage. i.e: /team_members <team>'
 
     team = Team.query.filter_by(name=team_name).one_or_none()
     if team is None:
-        msg = f"Team {team_name} does not exist"
+        msg = f"Team '{team_name}' does not exist"
     else:
         members = get_team_members(team.id)
         msg = f'{team_name} members:\n'
-        msg += ' '.join(m.real_name for m in members)
+        msg += '\n '.join(f':star: {m.real_name}' for m in members)
+    return msg
+
+
+@bp.route('/help', methods=('POST', ))
+def help():
+    msg = """
+Simple app for managing retroitems.
+Teams have members. Add them with `/add_team my_team_name @member1 @member2 ...`
+Teams have sprints. Start one with `/start_sprint my first sprint`
+Each sprint can have many retro items.\nAdd them with `/add_retro_item we need to improve our estimations`
+If you want to see current retro items write `/show_retro_items`
+If you have already seen them the retro meeting has ended you can write `/end_sprint` and start over
+    """
     return msg
