@@ -3,7 +3,8 @@ slackeventsapi==2.1.0
 Flask==1.0.2
 Flask-SQLAlchemy==2.4.0
 gunicorn==19.9.0
-pytz
+psycopg2-binary==2.8.3
+pytz==2019.1
 requests==2.20.1
 beautifulsoup4==4.7.1
 lxml==4.3.2

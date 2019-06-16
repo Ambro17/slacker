@@ -207,7 +207,7 @@ def not_found(error):
         logger.error(f'Error: {repr(error)}\nTraceback:\n{exception_text}')
         resp = {
             'text': f'You hurt the bot :face_with_head_bandage:.. Be gentle when speaking with him.\n'
-                    f'Error: {repr(error)}'
+                    f'Error: `{repr(error)}`'
         }
 
     return reply(resp)

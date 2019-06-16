@@ -6,6 +6,7 @@ from slackclient import SlackClient
 from slackeventsapi import SlackEventAdapter
 from raven.contrib.flask import Sentry
 
+from slacker.utils import reply
 from .manage import test, clean, init_db_command
 from .database import db
 from .models.user import User
@@ -55,15 +56,15 @@ def register_error_handlers(app):
     """Register error handlers to respond nicely"""
     @app.errorhandler(400)
     def not_found(error):
-        return make_response(jsonify({'error': 'Bad request'}), 400)
+        return reply({'text': 'Bad request', 'error': repr(error)})
 
     @app.errorhandler(404)
     def not_found(error):
-        return make_response(jsonify({'error': 'Not found'}), 404)
+        return reply({'text': 'Request not found', 'error': repr(error)})
 
     @app.errorhandler(500)
     def not_found(error):
-        return make_response(jsonify({'error': 'Server error. Sh*t happens.'}), 500)
+        return reply({'text': 'Server error. Sh*t happens.', 'error': repr(error)})
 
 
 def register_event_handlers(app):
