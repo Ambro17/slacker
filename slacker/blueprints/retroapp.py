@@ -33,7 +33,7 @@ def index():
 def add_team() -> str:
     text = request.form.get('text')
     if not text:
-        return 'Bad usage. i.e /add_team t1 @john @carla'
+        return 'Bad usage. i.e `/add_team t1 @john @carla`'
 
     def read_team_members(text):
         """
@@ -77,7 +77,7 @@ def start_sprint_callback() -> str:
     """Usage: /start_sprint <sprint_name>"""
     sprint_name = request.form.get('text')
     if not sprint_name:
-        return 'Bad usage. i.e: /start_sprint <sprint_name>'
+        return 'Bad usage. Usage: `/start_sprint <sprint_name>`'
 
     user_id = request.form.get('user_id')
     user = get_or_create_user(the_app.slack_cli, user_id)
@@ -96,7 +96,7 @@ def start_sprint_callback() -> str:
 def add_item_callback() -> str:
     item = request.form.get('text')
     if not item:
-        return 'Bad usage. i.e: /add_retro_item <text>'
+        return 'Bad usage. Usage: `/add_retro_item <text>`'
 
     user_id = request.form.get('user_id')
     user = get_or_create_user(the_app.slack_cli, user_id)
@@ -163,7 +163,7 @@ def team_members() -> str:
         if user.team is not None:
             team_name = user.team.name
         else:
-            return 'Bad usage. i.e: /team_members <team>'
+            return 'Bad usage. Usage: `/team_members <team>`'
 
     team = Team.query.filter_by(name=team_name).one_or_none()
     if team is None:
