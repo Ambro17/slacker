@@ -33,7 +33,9 @@ def create_app(config_object='slacker.settings'):
 def register_extensions(app):
     """Register SQLAlchemy extension."""
     db.init_app(app)
-    sentry.init_app(app, dsn=os.environ['SENTRY_DSN'])
+    sentry_logging = os.getenv('SENTRY_DSN')
+    if sentry_logging is not None:
+        sentry.init_app(app, dsn=sentry_logging)
 
 
 def register_blueprints(app):

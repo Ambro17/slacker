@@ -60,6 +60,7 @@ def check_update():
         for linea, status in updates
     }
 
+
 def get_update_info(alert):
     linea = _get_linea_name(alert)
     incident = _get_incident_text(alert)
