@@ -1,16 +1,18 @@
-# Credits to @yromero
-
+import os
 import logging
 from datetime import datetime
 from collections import defaultdict
-from typing import Union, Optional
+from typing import Optional
 
 import requests
 
 logger = logging.getLogger(__name__)
 
-ONAPSIS_SALUDABLE = "https://api.hoypido.com/company/326/menus"
-ONAPSIS_PAGO = "https://api.hoypido.com/company/327/menus"
+url = 'https://hoypido-api-v2.herokuapp.com/customer'
+hoypido_user = os.getenv('HOYPIDO_USER')
+menu_id = os.getenv('HOYPIDO_MENU')
+ONAPSIS_SALUDABLE = f"{url}/{hoypido_user}/location/{menu_id}/menus"
+
 
 MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY, SUNDAY = range(0, 7)
 
@@ -35,13 +37,15 @@ day_to_int = {
 
 def get_comidas():
     menu_por_dia = {}
-    r = requests.get(ONAPSIS_SALUDABLE, timeout=2)
+    r = requests.get(ONAPSIS_SALUDABLE, params={'access_token': os.getenv('HOYPIDO_TOKEN')}, timeout=3)
     week_menu = r.json()
+
     for day_menu in week_menu:
         date = datetime.strptime(day_menu["active_date"], "%Y-%m-%dT%H:%M:%S")
         menu = defaultdict(list)
         for plato in day_menu['options']:
-            menu[plato['subtype']].append(plato['name'])
+            food_category = plato.get('subtype') or 'Otro'
+            menu[food_category].append(plato['name'])
 
         menu_por_dia[date.weekday()] = menu
 
