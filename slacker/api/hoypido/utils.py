@@ -6,6 +6,8 @@ from typing import Optional
 
 import requests
 
+from slacker.exceptions import SlackerException
+
 logger = logging.getLogger(__name__)
 
 url = 'https://hoypido-api-v2.herokuapp.com/customer'
@@ -38,8 +40,10 @@ day_to_int = {
 def get_comidas():
     menu_por_dia = {}
     r = requests.get(ONAPSIS_SALUDABLE, params={'access_token': os.getenv('HOYPIDO_TOKEN')}, timeout=3)
-    week_menu = r.json()
+    if r.status_code != 200:
+        raise SlackerException(f'Could not connect to hoypido API. Try again later. {r.status_code}')
 
+    week_menu = r.json()
     for day_menu in week_menu:
         date = datetime.strptime(day_menu["active_date"], "%Y-%m-%dT%H:%M:%S")
         menu = defaultdict(list)
