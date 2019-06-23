@@ -12,7 +12,7 @@ from slacker.models import User
 from slacker.database import db
 
 
-JSON_TYPE = {'ContentType':'application/json'}
+JSON_TYPE = {'ContentType': 'application/json'}
 
 
 class BaseBlueprint(Blueprint):

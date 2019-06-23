@@ -41,7 +41,7 @@ def get_comidas():
     menu_por_dia = {}
     r = requests.get(ONAPSIS_SALUDABLE, params={'access_token': os.getenv('HOYPIDO_TOKEN')}, timeout=3)
     if r.status_code != 200:
-        raise SlackerException(f'Could not connect to hoypido API. Try again later. {r.status_code}')
+        raise SlackerException(f'Could not connect to hoypido API. Try again later. {r.status_code}-{r.reason}')
 
     week_menu = r.json()
     for day_menu in week_menu:
@@ -138,8 +138,6 @@ def prettify(foods):
     for day_num, menu_by_food_type in foods.items():
         msg += prettify_day_menu(day_num, menu_by_food_type)
 
-    footer = '🥕 Ir a Hoypido: https://www.hoypido.com/menu/onapsis.saludable'
-    msg = '\n'.join((msg, footer))
     return msg
 
 
@@ -169,7 +167,7 @@ def prettify_day_menu(day, food_types):
 
     """
     day_name = day_names[day]
-    menu = f'\n🥕 *{day_name}*\n'
+    menu = f'*{day_name}*\n'
     for food_type, foods in food_types.items():
         # Append > to quote each dish option and join on newlines
         foods = '\n'.join(f'>{f}' for f in foods)
