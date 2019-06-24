@@ -1,3 +1,4 @@
+import threading
 import json
 
 from flask import Blueprint, current_app as the_app, request, make_response, Response
@@ -76,6 +77,47 @@ def aws() -> str:
     )
 
     return make_response('', 200)
+
+
+@bp.route('/poll', methods=('GET', 'POST'))
+def create_poll():
+    number_emojis = ["one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "keycap_ten"]
+    text = request.form.get('text')
+    channel = request.form.get('channel_id')
+
+    try:
+        question, rest = text.split('?')
+    except ValueError:
+        return command_response('Mal formato. Uso: /poll pregunta? opcion1 opcion2')
+    else:
+        if not rest:
+            return command_response('Mal formato. Faltaron las opciones. /poll pregunta? op1 op2 op3')
+        options_with_reaction = ''
+        options = rest.split()
+        print(options)
+        for i, op in zip(range(10), options):
+            options_with_reaction += f':{number_emojis[i]}: {op}\n'
+
+
+        msg = f'*{question}?*\n{options_with_reaction}'
+
+    r = the_app.slack_cli.api_call("chat.postMessage", channel=channel, text=msg)
+    if not r['ok']:
+        return command_response('Error!')
+
+    msg_timestamp = r['message']['ts']
+
+
+    def add_options_as_reactions(options, ts):
+        for i, option in zip(range(10), options):  # Hardcode limit of 10 options
+            r = the_app.slack_cli.api_call("reactions.add",
+                                           channel=channel,
+                                           timestamp=ts,
+                                           name=number_emojis[i])
+
+    add_options_as_reactions(options, msg_timestamp)
+    OK = ''  # reply is sent as a new message in order to capture message timestamp (required to add reactions to msg)
+    return OK, 200
 
 
 @bp.route("/slack/message_actions", methods=["POST"])
