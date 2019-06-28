@@ -129,3 +129,24 @@ def command_response(text):
 
 def format_datetime(datetim, default='%d/%m %H:%M'):
     return datetim.strftime(default)
+
+
+def is_user_message(event):
+    return (
+            event.get("subtype") is None and
+            event.get('text') and
+            not event.get('text', '').startswith('/')
+    )
+
+
+def add_user(user):
+    u = db.session.query(User.id).filter_by(user_id=user['id']).one_or_none()
+    if u is None:
+        try:
+            db.session.add(User.from_json(user))
+        except Exception:
+            logger.opt(exception=True).error('Error adding user from %s', user)
+        else:
+            db.session.commit()
+            logger.info('User %s added to db', user['id'])
+
