@@ -127,6 +127,40 @@ def command_response(text):
     return reply(response)
 
 
+def sticker_response(sticker_name, sticker_image, **kwargs):
+    sticker = {
+        "response_type": 'ephemeral',
+        "blocks": [
+            {
+                "type": "image",
+                "title": {
+                    "type": "plain_text",
+                    "text": sticker_name
+                },
+                "image_url": sticker_image,
+                "alt_text": sticker_name
+            },
+            {
+                "type": "actions",
+                "block_id": "send_sticker_block_id",
+                "elements": [
+                    {
+                        "type": "button",
+                        "text": {
+                            "type": "plain_text",
+                            "text": "Send!",
+                        },
+                        "value": sticker_image,
+                        "style": "primary",
+                        "action_id": f"send_sticker_action_id:{sticker_name}"
+                    }
+                ]
+            }],
+    }
+    sticker.update(**kwargs)
+    return reply(sticker)
+
+
 def format_datetime(datetim, default='%d/%m %H:%M'):
     return datetim.strftime(default)
 

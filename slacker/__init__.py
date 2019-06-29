@@ -71,7 +71,7 @@ def register_error_handlers(app):
 def register_event_handlers(app):
     """Register handlers for slack events subscriptions"""
     events = SlackEventAdapter(os.environ["SLACK_SIGNATURE"],
-                               endpoint="/events",
+                               endpoint="/slack/events",
                                server=app)
 
     msg_regex = re.compile(r'!([a-z0-9_]){3,}', re.IGNORECASE)  # !<trigger> & len(trigger) >= 3
@@ -82,13 +82,6 @@ def register_event_handlers(app):
         logger.debug('Processing message event:\n%r' % event_data['event'])
         event = event_data['event']
         if is_user_message(event):
-            # Add user if it's new
-            # resp = app.slack_cli.api_call("users.info", user=event['user'])
-            # if resp['ok']:
-            #     add_user(resp['user'])
-            # else:
-            #     logger.error('Error in response %s', resp)
-            #
             message = event.get('text')
             if message is None:
                 return
