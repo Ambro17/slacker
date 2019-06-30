@@ -2,6 +2,7 @@ import json
 
 from flask import Blueprint, current_app as the_app, request, make_response, Response
 from loguru import logger
+from sqlalchemy.exc import IntegrityError
 
 from slacker.api.aws.aws import load_vms_info, save_user_vms
 from slacker.api.feriados import get_feriadosarg
@@ -44,28 +45,64 @@ def subte():
 @bp.route('/add_sticker', methods=('GET', 'POST'))
 def add_sticker():
     text = request.form.get('text')
-    if not is_valid_format(text):
+    try:
+        name, url = text.split()
+    except ValueError:
         msg = 'Usage: `/add_sticker mymeme https://i.imgur.com/12345678.png`'
     else:
-        name, url = text.split()
-        Sticker.create(name=name, image_url=url)
-        msg = 'Sticker saved'
+        try:
+            logger.debug('Creating sticker')
+            Sticker.create(name=name, image_url=url)
+            logger.debug('Sticker created')
+            msg = f'Sticker `{name}` saved'
+        except IntegrityError:
+            logger.opt(exception=True).error('Sticker not saved')
+            msg = f'Something went wrong. Is the sticker name `{name}` taken already?'
 
     return command_response(msg)
 
+
 @bp.route('/send_sticker', methods=('GET', 'POST'))
 def send_sticker():
-    text = request.form.get('text')
-    return sticker_response('my fav sticker', 'https://i.imgur.com/Su4qiXX.jpg')
-    #
-    # s = Sticker.find(name=text)
-    # if s is None:
-    #     msg = f'No sticker found under `{text}`'
-    #     resp = command_response(msg)
-    # else:
-    #     resp = sticker_response(s.name, s.image_url)
-    #
-    # return resp
+    sticker_name = request.form.get('text')
+    if not sticker_name:
+        resp =  command_response('Usage: /sticker <sticker_name>')
+    else:
+        s = Sticker.find(name=sticker_name)
+        if s is None:
+            msg = f'No sticker found under `{sticker_name}`'
+            resp = command_response(msg)
+        else:
+            resp = sticker_response(s.name, s.image_url)
+
+    return resp
+
+
+@bp.route('/list_stickers', methods=('GET', 'POST'))
+def list_stickers():
+    stickers = Sticker.query.all()
+    if not stickers:
+        resp = command_response('No stickers added yet.')
+    else:
+        blocks = [
+            {
+                "type": "section",
+                "text": {
+                    "type": "plain_text",
+                    "text": sticker.name
+                },
+                "accessory": {
+                    "type": "image",
+                    "image_url": sticker.image_url,
+                    "alt_text": sticker.name
+                }
+            } for sticker in stickers
+        ]
+        blocks.insert(0, {"type": "section", "text": {"type": "mrkdwn",
+                                                      "text": "*List of stickers*. Use them with `/sticker <name>`"}})
+        resp = command_response('*Stickers*', blocks=blocks, response_type='ephemeral')
+
+    return resp
 
 
 @bp.route('/aws', methods=('GET', 'POST'))

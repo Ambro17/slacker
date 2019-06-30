@@ -113,7 +113,7 @@ def reply(response, status=200, response_type=JSON_TYPE):
     return jsonify(response), status, response_type
 
 
-def command_response(text):
+def command_response(text, **kwargs):
     response = {
         'text': text,
         "attachments": [
@@ -124,6 +124,8 @@ def command_response(text):
             }
         ]
     }
+    response.update(**kwargs)
+
     return reply(response)
 
 
