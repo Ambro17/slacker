@@ -1,12 +1,13 @@
 import os
+import re
 
-from flask import Flask, make_response, jsonify
+from flask import Flask
 from loguru import logger
 from slackclient import SlackClient
 from slackeventsapi import SlackEventAdapter
 from raven.contrib.flask import Sentry
 
-from slacker.utils import reply
+from slacker.utils import reply, is_user_message, add_user
 from .manage import test, clean, init_db_command
 from .database import db
 from .models.user import User
@@ -70,33 +71,42 @@ def register_error_handlers(app):
 def register_event_handlers(app):
     """Register handlers for slack events subscriptions"""
     events = SlackEventAdapter(os.environ["SLACK_SIGNATURE"],
-                               endpoint="/events",
+                               endpoint="/slack/events",
                                server=app)
+
+    msg_regex = re.compile(r'!([a-z0-9_]){3,}', re.IGNORECASE)  # !<trigger> & len(trigger) >= 3
 
     @events.on("message")
     def handle_message(event_data):
         """Save new users"""
+        logger.debug('Processing message event:\n%r' % event_data['event'])
         event = event_data['event']
-        if event.get("subtype") != 'bot_message' and event.get('text') and not event.get('text', '').startswith('/'):
-            app.slack_cli.api_call("chat.postMessage",
-                                   channel=event['channel'],
-                                   text=event['text'].upper())
-            resp = app.slack_cli.api_call("users.info",
-                                          user=event['user'])
-            if resp['ok']:
-                user = resp['user']
-                u = db.session.query(User.id).filter_by(user_id=user['id']).one_or_none()
-                if u is None:
-                    try:
-                        db.session.add(User.from_json(user))
-                    except Exception:
-                        logger.opt(exception=True).error('Error adding user from %s', resp)
-                    else:
-                        db.session.commit()
-                        logger.info('User %s added to db', user['id'])
+        if is_user_message(event):
+            message = event.get('text')
+            if message is None:
+                return
 
-            else:
-                logger.error('Bad request: %s', resp)
+            # Handle message triggers. Improvement: Save triggers as classes attributes and iterate over all of them,
+            match = msg_regex.search(message)
+            if match:
+                logger.debug('Handling message %r' % message)
+                key = match.group(1)
+                image_j = [{
+                    "type": "image",
+                    "title": {
+                        "type": "plain_text",
+                        "text": "hola "
+                    },
+                    "image_url": "https://stickeroid.com/uploads/pic/082218/thumb/stickeroid_5bf547dc0f81a.png",
+                    "alt_text": "chau"
+                }]
+                r = app.slack_cli.api_call("chat.postMessage", channel=event['channel'], blocks=image_j)
+                logger.debug(r)
+                # image = get_image(key)
+                # if image:
+                #     send_message(image)
+
+
 
     @events.on("reaction_added")
     def reaction_added(event_data):

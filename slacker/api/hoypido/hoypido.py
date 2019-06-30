@@ -1,3 +1,4 @@
+import datetime as dt
 from slacker.api.hoypido.utils import (
     get_comidas,
     prettify_food_offers,
@@ -8,7 +9,16 @@ from slacker.api.hoypido.utils import (
 
 def get_hoypido() -> str:
     comidas = get_comidas()
-    msg = prettify_food_offers(comidas)
+
+    week_day = dt.datetime.now().weekday()
+    comidas_del_dia = filter_comidas(comidas,
+                                     lambda dia, comidas: dia == week_day)
+
+    if comidas_del_dia:
+        comidas_del_dia[week_day] = {food_type: foods for food_type, foods in comidas_del_dia[week_day].items()
+                                     if food_type == 'especiales'}
+
+    msg = prettify_food_offers(comidas_del_dia)
     return msg
 
 

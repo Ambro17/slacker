@@ -12,7 +12,7 @@ from slacker.models import User
 from slacker.database import db
 
 
-JSON_TYPE = {'ContentType':'application/json'}
+JSON_TYPE = {'ContentType': 'application/json'}
 
 
 class BaseBlueprint(Blueprint):
@@ -113,7 +113,7 @@ def reply(response, status=200, response_type=JSON_TYPE):
     return jsonify(response), status, response_type
 
 
-def command_response(text):
+def command_response(text, **kwargs):
     response = {
         'text': text,
         "attachments": [
@@ -124,8 +124,65 @@ def command_response(text):
             }
         ]
     }
+    response.update(**kwargs)
+
     return reply(response)
+
+
+def sticker_response(sticker_name, sticker_image, **kwargs):
+    sticker = {
+        "response_type": 'ephemeral',
+        "blocks": [
+            {
+                "type": "image",
+                "title": {
+                    "type": "plain_text",
+                    "text": sticker_name
+                },
+                "image_url": sticker_image,
+                "alt_text": sticker_name
+            },
+            {
+                "type": "actions",
+                "block_id": "send_sticker_block_id",
+                "elements": [
+                    {
+                        "type": "button",
+                        "text": {
+                            "type": "plain_text",
+                            "text": "Send!",
+                        },
+                        "value": sticker_image,
+                        "style": "primary",
+                        "action_id": f"send_sticker_action_id:{sticker_name}"
+                    }
+                ]
+            }],
+    }
+    sticker.update(**kwargs)
+    return reply(sticker)
 
 
 def format_datetime(datetim, default='%d/%m %H:%M'):
     return datetim.strftime(default)
+
+
+def is_user_message(event):
+    return (
+            event.get("subtype") is None and
+            event.get('text') and
+            not event.get('text', '').startswith('/')
+    )
+
+
+def add_user(user):
+    u = db.session.query(User.id).filter_by(user_id=user['id']).one_or_none()
+    if u is None:
+        try:
+            db.session.add(User.from_json(user))
+        except Exception:
+            logger.opt(exception=True).error('Error adding user from %s', user)
+        else:
+            db.session.commit()
+            logger.info('User %s added to db', user['id'])
+
