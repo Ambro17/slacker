@@ -9,16 +9,16 @@ def test_format_options(db):
 
     poll = PollFactory(question='et tu?', options=options)
     options = poll.options_to_string()
-    assert options == "1 A\n2 B"
+    assert options == "1. A\n2. B"
 
     VoteFactory(option=option_1)
     VoteFactory(option=option_1)
     options = poll.options_to_string()
-    assert options == "1 A `2`\n2 B"
+    assert options == "1. A `2`\n2. B"
 
     VoteFactory(option=option_2)
     options = poll.options_to_string()
-    assert options == "1 A `2`\n2 B `1`"
+    assert options == "1. A `2`\n2. B `1`"
 
 
 def test_create_poll_with_options(db):
