@@ -5,6 +5,7 @@ from factory.alchemy import SQLAlchemyModelFactory
 
 from slacker.database import db
 from slacker.models.aws import VM, VMOwnership
+from slacker.models.poll import Poll, Option, Vote
 from slacker.models.retro import Sprint, Team, RetroItem
 from slacker.models.user import User
 
@@ -79,3 +80,40 @@ class VMFactory(BaseFactory):
 class VMOwnershipFactory(BaseFactory):
     class Meta:
         model = VMOwnership
+
+
+class PollFactory(BaseFactory):
+    class Meta:
+        model = Poll
+
+    id = factory.sequence(lambda n: n+1)
+    question = factory.sequence(lambda s: f'Pregunta {s}')
+
+    @factory.post_generation
+    def options(self, create, extracted, **kwargs):
+        if not create:
+            # Simple build, do nothing.
+            return
+
+        if extracted:
+            # A list of groups were passed in, use them
+            for member in extracted:
+                self.options.append(member)
+
+
+class OptionFactory(BaseFactory):
+    class Meta:
+        model = Option
+
+    id = factory.sequence(lambda n: n+1)
+    poll = factory.SubFactory(PollFactory)
+    number = factory.fuzzy.FuzzyChoice(list(range(1, 11)))
+    text = factory.fuzzy.FuzzyText(length=20)
+    votes = []
+
+
+class VoteFactory(BaseFactory):
+    class Meta:
+        model = Vote
+
+    option = factory.SubFactory(OptionFactory)

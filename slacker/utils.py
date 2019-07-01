@@ -13,6 +13,7 @@ from slacker.database import db
 
 
 JSON_TYPE = {'ContentType': 'application/json'}
+number_emojis = ["one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "keycap_ten"]
 
 
 class BaseBlueprint(Blueprint):
