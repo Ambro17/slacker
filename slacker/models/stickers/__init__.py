@@ -1,5 +1,5 @@
 from slacker.database import db
-from slacker.models import CRUDMixin
+from slacker.models.model_utils import CRUDMixin
 
 
 class Sticker(db.Model, CRUDMixin):

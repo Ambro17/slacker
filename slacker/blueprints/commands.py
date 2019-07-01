@@ -10,6 +10,7 @@ from slacker.api.hoypido import get_hoypido
 from slacker.api.stickers import is_valid_format
 from slacker.api.subte import get_subte
 from slacker.database import db
+from slacker.models.poll import Poll, Vote
 from slacker.models.stickers import Sticker
 from slacker.utils import reply, command_response, sticker_response
 
@@ -146,42 +147,40 @@ def aws():
 
 @bp.route('/poll', methods=('GET', 'POST'))
 def create_poll():
-    number_emojis = ["one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "keycap_ten"]
     text = request.form.get('text')
     channel = request.form.get('channel_id')
 
-    try:
-        question, rest = text.split('?')
-    except ValueError:
-        return command_response('Mal formato. Uso: /poll pregunta? opcion1 opcion2')
-    else:
-        if not rest:
-            return command_response('Mal formato. Faltaron las opciones. /poll pregunta? op1 op2 op3')
-        options_with_reaction = ''
-        options = rest.split()
-        print(options)
-        for i, op in zip(range(10), options):
-            options_with_reaction += f':{number_emojis[i]}: {op}\n'
+    poll, error = Poll.from_string(text)
+    if error:
+        return command_response(error)
 
+    msg_section = {
+        "type": "section",
+        "text": {"type": "mrkdwn", "text": str(poll)}
+    }
 
-        msg = f'*{question}?*\n{options_with_reaction}'
-
-    r = the_app.slack_cli.api_call("chat.postMessage", channel=channel, text=msg)
+    block_elems = [
+        {
+            "type": "button",
+            "text": {
+                "type": "plain_text",
+                "text": str(option_number),
+            },
+            "value": f'{option_number}',
+            "action_id": f'poll_vote:{option_number}'
+        }
+        for option_number in range(1, len(poll.options) + 1)
+    ]
+    blocks = [
+        msg_section,
+        {'type': 'actions', 'block_id': f'{poll.id}', 'elements': block_elems}
+    ]
+    r = the_app.slack_cli.api_call("chat.postMessage", channel=channel, blocks=blocks)
     if not r['ok']:
+        logger.error(r)
         return command_response('Error!')
 
-    msg_timestamp = r['message']['ts']
-
-
-    def add_options_as_reactions(options, ts):
-        for i, option in zip(range(10), options):  # Hardcode limit of 10 options
-            r = the_app.slack_cli.api_call("reactions.add",
-                                           channel=channel,
-                                           timestamp=ts,
-                                           name=number_emojis[i])
-
-    add_options_as_reactions(options, msg_timestamp)
-    OK = ''  # reply is sent as a new message in order to capture message timestamp (required to add reactions to msg)
+    OK = ''
     return OK, 200
 
 
@@ -215,88 +214,124 @@ def message_actions():
                                        channel=action['channel']['id'],
                                        text=msg)
 
-    else:
-        if action["type"] == "block_actions":
-            """
-            {
-                'type': 'block_actions',
-                'team': {
-                    'id': 'TG4H5ANVC',
-                    'domain': 'boedo'
-                },
-                'user': {
-                    'id': 'UG31KD90T',
-                    'username': 'ambro17.1',
-                    'name': 'ambro17.1',
-                    'team_id': 'TG4H5ANVC'
-                },
-                'api_app_id': 'AG4H6GBEJ',
-                'token': 'eplrfng7b3YBA93ZYNVFLUi6',
-                'container': {
-                    'type': 'message',
-                    'message_ts': '1561846841.001400',
-                    'channel_id': 'CKSMVKQC9',
-                    'is_ephemeral': True
-                },
-                'trigger_id': '679915593636.548583362998.50b265af2e667a9c6abb37c80542998f',
-                'channel': {
-                    'id': 'CKSMVKQC9',
-                    'name': 'test2'
-                },
-                'response_url': 'https://hooks.slack.com/actions/TG4H5ANVC/680397789861/XywBRhjn82vIgOuQrBfUxxFS',
-                'actions': [{
-                    'action_id': 'send_sticker_action_id',
-                    'block_id': 'send_sticker_block_id',
-                    'text': {
-                        'type': 'plain_text',
-                        'text': 'Send!',
-                        'emoji': True
-                    },
-                    'value': 'send_sticker',
-                    'style': 'primary',
-                    'type': 'button',
-                    'action_ts': '1561846848.181810'
-                }]
-            }            
-            """
-            the_action = action['actions'][0]
-            if the_action['action_id'].startswith('send_sticker_action_id'):
-                """
-                'actions': [{
-                    'action_id': 'send_sticker_action_id',
-                    'block_id': 'send_sticker_block_id',
-                    'text': {
-                        'type': 'plain_text',
-                        'text': 'Send!',
-                        'emoji': True
-                    },
-                    'value': 'link',
-                    'style': 'primary',
-                    'type': 'button',
-                    'action_ts': '1561848669.221608'
-                }]                
-                """
-                _, sticker_name = the_action['action_id'].split(':', 1)
-                img_url = the_action['value']
-                blocks = [
-                    {
-                        "type": "image",
-                        "title": {
-                            "type": "plain_text",
-                            "text": sticker_name,
-                        },
-                        "image_url": img_url,
-                        "alt_text": sticker_name
-                    }
-                ]
-                logger.debug(f'Sending sticker.. {img_url}')
-                r = the_app.slack_cli.api_call('chat.postMessage',
-                                               channel=action['channel']['id'],
-                                               blocks=blocks)
-                if not r['ok']:
-                    logger.error("Sticker not sent. %s" % r)
 
+    elif action["type"] == "block_actions":
+        """
+        {
+            'type': 'block_actions',
+            'team': {
+                'id': 'TG4H5ANVC',
+                'domain': 'boedo'
+            },
+            'user': {
+                'id': 'UG31KD90T',
+                'username': 'ambro17.1',
+                'name': 'ambro17.1',
+                'team_id': 'TG4H5ANVC'
+            },
+            'api_app_id': 'AG4H6GBEJ',
+            'token': 'eplrfng7b3YBA93ZYNVFLUi6',
+            'container': {
+                'type': 'message',
+                'message_ts': '1561846841.001400',
+                'channel_id': 'CKSMVKQC9',
+                'is_ephemeral': True
+            },
+            'trigger_id': '679915593636.548583362998.50b265af2e667a9c6abb37c80542998f',
+            'channel': {
+                'id': 'CKSMVKQC9',
+                'name': 'test2'
+            },
+            'response_url': 'https://hooks.slack.com/actions/TG4H5ANVC/680397789861/XywBRhjn82vIgOuQrBfUxxFS',
+            'actions': [{
+                'action_id': 'send_sticker_action_id',
+                'block_id': 'send_sticker_block_id',
+                'text': {
+                    'type': 'plain_text',
+                    'text': 'Send!',
+                    'emoji': True
+                },
+                'value': 'send_sticker',
+                'style': 'primary',
+                'type': 'button',
+                'action_ts': '1561846848.181810'
+            }]
+        }            
+        """
+        the_action = action['actions'][0]
+        if the_action['action_id'].startswith('send_sticker_action_id'):
+            """
+            'actions': [{
+                'action_id': 'send_sticker_action_id',
+                'block_id': 'send_sticker_block_id',
+                'text': {
+                    'type': 'plain_text',
+                    'text': 'Send!',
+                    'emoji': True
+                },
+                'value': 'link',
+                'style': 'primary',
+                'type': 'button',
+                'action_ts': '1561848669.221608'
+            }]                
+            """
+            _, sticker_name = the_action['action_id'].split(':', 1)
+            img_url = the_action['value']
+            blocks = [
+                {
+                    "type": "image",
+                    "title": {
+                        "type": "plain_text",
+                        "text": sticker_name,
+                    },
+                    "image_url": img_url,
+                    "alt_text": sticker_name
+                }
+            ]
+            logger.debug(f'Sending sticker.. {img_url}')
+            r = the_app.slack_cli.api_call('chat.postMessage',
+                                           channel=action['channel']['id'],
+                                           blocks=blocks)
+            if not r['ok']:
+                logger.error("Sticker not sent. %s" % r)
+
+        elif the_action['action_id'].startswith('poll_vote'):
+            poll_id = the_action['block_id']
+            poll = Poll.find(id=poll_id)
+            if poll is None:
+                return reply('Poll not found.')
+
+            vote_choice = the_action['value']
+            op = next((op for op in poll.options if op.number == int(vote_choice)), None)
+            if op is None:
+                return reply('Vote choice not found')
+
+            # Add vote for chosen option
+            db.session.add(Vote(option_id=op.id))
+            db.session.commit()
+
+            # Update poll text
+            # channel, text, ts, blocks
+            channel = action['channel']['id']
+            blocks = action['message']['blocks']
+            # Update block first text section with new votes
+            blocks[0]['text']['text'] = str(poll)
+            ts = action['message']['ts']
+            r = the_app.slack_cli.api_call("chat.update", channel=channel, ts=ts, blocks=blocks)
+            if not r['ok']:
+                logger.error(r)
+                return reply('Error updating vote')
+
+            logger.debug('Poll vote was updated.')
 
         resp = OK
-    logger.info("response %r" % resp)
+    else:
+        resp = OK
+
     return reply(resp, 200)
+
+
+@bp.errorhandler(500)
+def not_found(error):
+    resp = {'text': f':anger:  {repr(error)}'}
+    return reply(resp)

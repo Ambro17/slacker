@@ -1,9 +1,18 @@
 from datetime import datetime as d
 
-from slacker.models.aws import VMOwnership
 from slacker.models.retro import Team, RetroItem
 from slacker.models.user import User
-from tests.factorium import UserFactory, TeamFactory, RetroItemFactory, SprintFactory, VMFactory, VMOwnershipFactory
+from tests.factorium import (
+    UserFactory,
+    TeamFactory,
+    RetroItemFactory,
+    SprintFactory,
+    VMFactory,
+    VMOwnershipFactory,
+    PollFactory,
+    OptionFactory,
+    VoteFactory,
+)
 
 
 def test_index(client):
@@ -103,4 +112,72 @@ def test_user_can_have_many_vms(db):
     my_other_vm = VMOwnershipFactory(user_id=user.id, vm_id=vm_2.id)
     db.session.flush()
 
-    assert user.owned_vms == [my_vm, my_other_vm]
+    assert len(user.owned_vms) == 2
+    assert my_vm in user.owned_vms
+    assert my_other_vm in user.owned_vms
+
+
+def test_create_poll(db):
+    option_1 = OptionFactory(poll=None, number=1, text='first')
+    option_2 = OptionFactory(poll=None, number=2, text='second op')
+    option_3 = OptionFactory(poll=None, number=3, text='3rd op')
+    options = (option_1, option_2, option_3)
+
+    poll = PollFactory(question='who?', options=options)
+    assert poll.question == 'who?'
+    assert len(poll.options) == 3
+    assert all(op in poll.options for op in options)
+
+    assert poll.to_dict() == {
+        'question': 'who?',
+        'options': [
+            (1, 'first', 0),
+            (2, 'second op', 0),
+            (3, '3rd op', 0),
+        ],
+    }
+
+
+def test_vote_count_on_options(db):
+    option_1 = OptionFactory(poll=None, number=1)
+    option_2 = OptionFactory(poll=None, number=2)
+    option_3 = OptionFactory(poll=None, number=3)
+    options = (option_1, option_2, option_3)
+
+    poll = PollFactory(question='et tu?', options=options)
+    assert poll.question
+
+    VoteFactory(option=option_1)
+    VoteFactory(option=option_1)
+    VoteFactory(option=option_2)
+
+    op1 = next(o for o in poll.options if o.number == 1)
+    op2 = next(o for o in poll.options if o.number == 2)
+    op3 = next(o for o in poll.options if o.number == 3)
+    assert len(op1.votes) == 2
+    assert len(op2.votes) == 1
+    assert len(op3.votes) == 0
+
+    assert poll.to_dict() == {
+        'question': 'et tu?',
+        'options': [
+            (1, option_1.text, 2),
+            (2, option_2.text, 1),
+            (3, option_3.text, 0),
+        ],
+    }
+
+
+def test_create_orphan_option_and_then_assign_to_poll(db):
+    option_1 = OptionFactory(poll=None, number=1, text='A')
+    assert option_1
+    options = (option_1, )
+    poll = PollFactory(question='et tu?', options=options)
+    db.session.flush()
+
+    assert option_1.poll_id == poll.id
+    assert option_1.votes == []
+
+    VoteFactory(option=option_1)
+
+    assert len(option_1.votes) == 1
