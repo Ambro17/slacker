@@ -4,9 +4,9 @@ from slacker.blueprints.retroapp import USER_REGEX
 
 
 @pytest.mark.parametrize("escaped_text, expected_user", (
-        ("<@U1234|juan>", {'user_id': 'U1234', 'name':'juan'}),
-        ("<@W1234|tomás>", {'user_id': 'W1234', 'name':'tomás'}),
-        ("  <@W123456789|alex>  ", {'user_id': 'W123456789', 'name':'alex'}),
+        ("<@U1234|juan>", {'user_id': 'U1234', 'name': 'juan'}),
+        ("<@W1234|tomás>", {'user_id': 'W1234', 'name': 'tomás'}),
+        ("  <@W123456789|alex>  ", {'user_id': 'W123456789', 'name': 'alex'}),
 ))
 def test_read_user_from_mention(escaped_text, expected_user):
     assert USER_REGEX.search(escaped_text).groupdict() == expected_user

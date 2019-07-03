@@ -31,7 +31,9 @@ def test_retro_index(client):
 
     expected_response = {
         'error': "You must specify a retro action.",
-        'commands': ['add_team', 'start_sprint', 'add_item', 'show_items', 'end_sprint']
+        'commands': [
+            'add_team', 'start_sprint', 'add_item', 'show_items', 'end_sprint'
+        ]
     }
 
     assert response.status_code == 200
@@ -108,8 +110,8 @@ def test_user_can_have_many_vms(db):
     vm = VMFactory()
     vm_2 = VMFactory()
 
-    my_vm = VMOwnershipFactory(user_id=user.id, vm_id=vm.id)
-    my_other_vm = VMOwnershipFactory(user_id=user.id, vm_id=vm_2.id)
+    my_vm = VMOwnershipFactory(user=user, vm=vm)
+    my_other_vm = VMOwnershipFactory(user=user, vm=vm_2)
     db.session.flush()
 
     assert len(user.owned_vms) == 2

@@ -2,17 +2,16 @@ import json
 
 from flask import Blueprint, current_app as the_app, request, make_response, Response
 from loguru import logger
-from sqlalchemy.exc import IntegrityError
 
 from slacker.api.aws.aws import load_vms_info, save_user_vms
 from slacker.api.feriados import get_feriadosarg
 from slacker.api.hoypido import get_hoypido
-from slacker.api.stickers import is_valid_format
+from slacker.api.stickers import show_stickers, lookup_sticker, sticker_add
 from slacker.api.subte import get_subte
 from slacker.database import db
 from slacker.models.poll import Poll, Vote
-from slacker.models.stickers import Sticker
-from slacker.utils import reply, command_response, sticker_response
+from slacker.models.user import get_or_create_user
+from slacker.utils import reply, command_response
 
 bp = Blueprint('commands', __name__)
 
@@ -48,62 +47,26 @@ def add_sticker():
     text = request.form.get('text')
     try:
         name, url = text.split()
+        return sticker_add(name, url)
     except ValueError:
-        msg = 'Usage: `/add_sticker mymeme https://i.imgur.com/12345678.png`'
-    else:
-        try:
-            logger.debug('Creating sticker')
-            Sticker.create(name=name, image_url=url)
-            logger.debug('Sticker created')
-            msg = f'Sticker `{name}` saved'
-        except IntegrityError:
-            logger.opt(exception=True).error('Sticker not saved')
-            msg = f'Something went wrong. Is the sticker name `{name}` taken already?'
-
-    return command_response(msg)
+        return command_response('Usage: `/add_sticker mymeme https://i.imgur.com/12345678.png`')
 
 
 @bp.route('/send_sticker', methods=('GET', 'POST'))
 def send_sticker():
     sticker_name = request.form.get('text')
     if not sticker_name:
-        resp =  command_response('Usage: /sticker <sticker_name>')
+        resp =  command_response('Error. Usage: /sticker <sticker_name>')
     else:
-        s = Sticker.find(name=sticker_name)
-        if s is None:
-            msg = f'No sticker found under `{sticker_name}`'
-            resp = command_response(msg)
-        else:
-            resp = sticker_response(s.name, s.image_url)
+        resp = lookup_sticker(sticker_name)
 
     return resp
 
 
 @bp.route('/list_stickers', methods=('GET', 'POST'))
 def list_stickers():
-    stickers = Sticker.query.all()
-    if not stickers:
-        resp = command_response('No stickers added yet.')
-    else:
-        blocks = [
-            {
-                "type": "section",
-                "text": {
-                    "type": "plain_text",
-                    "text": sticker.name
-                },
-                "accessory": {
-                    "type": "image",
-                    "image_url": sticker.image_url,
-                    "alt_text": sticker.name
-                }
-            } for sticker in stickers
-        ]
-        blocks.insert(0, {"type": "section", "text": {"type": "mrkdwn",
-                                                      "text": "*List of stickers*. Use them with `/sticker <name>`"}})
-        resp = command_response('*Stickers*', blocks=blocks, response_type='ephemeral')
-
-    return resp
+    stickers = show_stickers()
+    return stickers
 
 
 @bp.route('/aws', methods=('GET', 'POST'))
@@ -129,7 +92,7 @@ def aws():
             {
                 "label": "VMs information",
                 "type": "textarea",
-                "hint": "Put your vm alias and ids. Separated by commas and new lines",
+                "hint": "Put your vm alias and ids. One line for each vm",
                 "placeholder": "console=5kyq3bdcnl6sbnsv9t6q\nsensor=wwt6adcuow78sj9hj8hi",
                 "name": "vms_info",
             }
@@ -186,18 +149,24 @@ def create_poll():
 
 @bp.route("/slack/message_actions", methods=["POST"])
 def message_actions():
+    logger.debug("Handling message action.")
+    # TODO: Respond OK ASAP and process request async
     action = json.loads(request.form["payload"])
+    logger.debug(f"Action: {action}")
 
-
-    # TODO: Implement better handling of action callbacks and loop over possible ones like ptb lib.
+    # TODO: Implement better handling of action callbacks and loop over handlers like ptb lib.
     is_aws_submission = action["type"] == "dialog_submission" and action.get('callback_id', '').startswith('aws_callback')
     OK = ''
     if is_aws_submission:
         # Update the message to show that we're in the process of taking their order
         form = action['submission']
-        name, token, vms = form['user'], form['token'], form['vms_info']
-        vm_data = load_vms_info(vms)
-        if vm_data is None:
+        name, token, raw_vms = form['user'], form['token'], form['vms_info']
+
+        logger.debug(f"VMs input:\n{raw_vms}")
+        vms_info = load_vms_info(raw_vms)
+        logger.debug(f"User vms:\n{vms_info}")
+
+        if vms_info is None:
             resp = {
                 'errors': [{
                     'name': 'vms_info',
@@ -205,14 +174,31 @@ def message_actions():
                 }]
             }
         else:
-            save_user_vms(db.session, the_app.slack_cli, action['user']['id'], name, token, vms)
-            vms = '\n'.join(f':point_right: {vm}: {hash}' for vm, hash in vm_data.items())
-            msg = f':check: Tus vms quedaron guardadas:\n{vms}'
-            resp = OK
-
-            the_app.slack_cli.api_call("chat.postMessage",
-                                       channel=action['channel']['id'],
-                                       text=msg)
+            logger.debug(f"Get or create user. Id {action['user']['id']}")
+            user = get_or_create_user(the_app.slack_cli, action['user']['id'])
+            logger.debug("User: %s" % user.real_name)
+            try:
+                logger.debug("Saving VMs..")
+                save_user_vms(user, name, token, vms_info)
+                logger.debug("VMs saved")
+            except Exception as e:
+                logger.info(f"Something went bad while saving vms, {repr(e)}")
+                resp = {
+                    'errors': [{
+                        'name': 'vms_info',
+                        'error': f'{e.__class__.__name__}: {str(e)}'
+                    }]
+                }
+            else:
+                vms = '\n'.join(f':point_right: {vm}: {hash}' for vm, hash in vms_info.items())
+                msg = f':check: Tus vms quedaron guardadas:\n{vms}'
+                resp = OK
+                logger.debug("Notifying user of success")
+                # the_app.slack_cli.api_call("chat.postMessage",
+                #                            channel=action['channel']['id'],
+                #                            text=msg)  # Should be async. It takes too long and slack thinks dialog
+                #                            post went wrong
+                logger.debug("User notified")
 
 
     elif action["type"] == "block_actions":

@@ -1,5 +1,3 @@
-import re
-
 import pytest
 
 from slacker.api.retro.retro import (
@@ -58,7 +56,6 @@ def test_add_retroitem_fails_if_expired_sprint(db, f):
     user = f.UserFactory(team=team)
     sprint = f.SprintFactory(team=team, running=False)
 
-    _id_ = sprint.id
     with pytest.raises(InactiveSprintException,
                        match="No active sprint with specified parameters"):
         add_item(sprint.id, user.id, user.real_name, 'foo')

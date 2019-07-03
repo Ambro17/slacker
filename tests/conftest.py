@@ -49,6 +49,7 @@ def runner(app):
     """A test runner for the app's Click commands."""
     return app.test_cli_runner()
 
+
 @pytest.fixture(scope='session')
 def f():
     from tests import factorium

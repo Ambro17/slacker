@@ -1,8 +1,8 @@
 from loguru import logger
 
+from slacker.database import db
 from slacker.exceptions import SlackerException
 from slacker.models import VM, VMOwnership
-from slacker.models.user import get_or_create_user
 
 
 def load_vms_info(vms):
@@ -33,30 +33,37 @@ class DuplicateAliasException(SlackerException):
     """Raised if user wants to save a vm under an alias that already maps to one oh her/his vms"""
 
 
-def save_user_vms(S, cli, user_id, ovi_name, ovi_token, user_vms):
-    user = get_or_create_user(cli, user_id)
-
-    existing_user_vm_aliases = {vm.alias for vm in user.owned_vms}
-    if any(alias in existing_user_vm_aliases for alias in user_vms):
+def save_user_vms(user, ovi_name, ovi_token, new_user_vms):
+    existing_user_vms = {vm.alias for vm in user.owned_vms}
+    repeated_alias = next((alias for alias in new_user_vms if alias in existing_user_vms), False)
+    if repeated_alias:
         raise DuplicateAliasException(
-            f"One of your VM aliases conflicts with an existing one. "
-            f"Try a different name or remove all vms and readd the ones you want to keep"
+            f"{repeated_alias} is already mapped to a VM. Change it and retry."
         )
 
-    for alias, vm_id in user_vms.items():
-        vm = VM.query.get(vm_id) or VM(id=vm_id)
-        S.add(VMOwnership(vm=vm, user=user, alias=alias))
+    for alias, vm_id in new_user_vms.items():
+        logger.debug(f"Atttempting to add VM with alias={alias} and id={vm_id}")
+        vm = VM.query.get(vm_id)
+        if not vm:
+            vm = VM(id=vm_id)
+
+        owned_vm = VMOwnership.query.filter_by(alias=alias, user_id=user.id, vm_id=vm_id).one_or_none()
+        if not owned_vm:
+            logger.debug("Creating vm ownership")
+            owned_vm = VMOwnership(vm=vm, user=user, alias=alias)
+            db.session.add(owned_vm)
+        else:
+            logger.debug(f"Ignoring {str(owned_vm)} because it's already on database.")
 
     user.ovi_name = ovi_name
     user.ovi_token = ovi_token
 
-    S.commit()
+    db.session.commit()
 
 
-def delete_user_vms(S, cli, user_id):
-    user = get_or_create_user(cli, user_id)
+def delete_user_vms(user):
     user.owned_vms = []
-    S.commit()
+    db.session.commit()
 
 
 def show_user_vms(user):

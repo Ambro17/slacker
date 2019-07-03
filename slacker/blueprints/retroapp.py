@@ -6,7 +6,7 @@ from loguru import logger
 
 from slacker.api.retro.retro import start_sprint, add_item, end_sprint
 from slacker.database import db
-from slacker.exceptions import SlackerException, RetroAppException
+from slacker.exceptions import RetroAppException
 from slacker.models import Team, Sprint, RetroItem
 from slacker.models.model_utils import get_or_create
 from slacker.models.retro.crud import add_team_members, get_team_members

@@ -131,6 +131,7 @@ def command_response(text, **kwargs):
 
 
 def sticker_response(sticker_name, sticker_image, **kwargs):
+    """Sends an ephemeral message with the selected sticker with a button to send it to the channel"""
     sticker = {
         "response_type": 'ephemeral',
         "blocks": [

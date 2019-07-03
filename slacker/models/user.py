@@ -1,3 +1,5 @@
+from loguru import logger
+
 from slacker.database import db
 from slacker.exceptions import SlackerException
 
@@ -60,13 +62,17 @@ def get_or_create_user(cli, user_id):
     """Returns the user_id, creating it if necessary"""
     user = db.session.query(User).filter_by(user_id=user_id).one_or_none()
     if user is not None:
+        logger.debug(f"User {user.real_name} already exists")
         return user
 
+    logger.debug("Requesting user info")
     resp = cli.api_call("users.info", user=user_id)
     if resp['ok']:
+        logger.debug("Info obtained")
         new_user = User.from_json(resp['user'])
         db.session.add(new_user)
     else:
+        logger.debug(f"Error requestion user info.\n{resp}")
         raise ResponseNotOkException("Slack api did not respond OK when requesting user info")
 
     return new_user
