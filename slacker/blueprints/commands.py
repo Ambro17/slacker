@@ -7,7 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from slacker.api.aws.aws import load_vms_info, save_user_vms
 from slacker.api.feriados import get_feriadosarg
 from slacker.api.hoypido import get_hoypido
-from slacker.api.stickers import is_valid_format
+from slacker.api.poll import user_has_voted
 from slacker.api.subte import get_subte
 from slacker.database import db
 from slacker.models.poll import Poll, Vote
@@ -307,14 +307,16 @@ def message_actions():
                 return reply('Vote choice not found')
 
             # Add vote for chosen option
-            db.session.add(Vote(option_id=op.id))
+            user_id = action['user']['id']
+            if user_has_voted(user_id, poll.id):
+                return reply('You have already voted.')
+
+            db.session.add(Vote(option_id=op.id, user_id=user_id))
             db.session.commit()
 
-            # Update poll text
-            # channel, text, ts, blocks
             channel = action['channel']['id']
             blocks = action['message']['blocks']
-            # Update block first text section with new votes
+            # Update block's text with new votes
             blocks[0]['text']['text'] = str(poll)
             ts = action['message']['ts']
             r = the_app.slack_cli.api_call("chat.update", channel=channel, ts=ts, blocks=blocks)

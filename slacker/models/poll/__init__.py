@@ -1,37 +1,28 @@
 """
 Models to support polls
 
-        ,---------.
-        |   Poll  |
-        |---------|
-        |+question|
-        |+options |
-        |---------|
-        `---------'
-              1
-              |
-              |
-              *
-         ,--------.
-         | Option |
-         |--------|
-         |+text   |
-         |+number |
-         |+poll_id|
-         |+votes  |
-         |--------|
-         `--------'
-              1
-              |
-              |
-              *
-        ,----------.
-        |   Vote   |
-        |----------|
-        |+option_id|
-        |+user_id  |
-        |----------|
-        `----------'
+
+,---------.           ,------------.
+|  Poll   |           |   Option   |
+|---------|           |------------|
+|+id      | 1 ----- * |+ id        |
+|+question|           |+ text      |
+|+options |           |+ start_date|
+`---------`           `------------`
+    1                       1
+    |                       |
+    |                       |
+    `-----------+-----------`
+                |
+                *
+           .----------.
+           |   Vote   |
+           |----------|
+           |+id       |
+           |+question |
+           |+options  |
+           `----------`
+
 """
 from operator import itemgetter
 
@@ -43,6 +34,7 @@ class Poll(db.Model, CRUDMixin):
     id = db.Column(db.Integer, primary_key=True)
     question = db.Column(db.String, nullable=False)
     options = db.relationship("Option", backref='poll')
+    votes = db.relationship("Vote", backref='poll')
     created_at = db.Column(db.DateTime)
     author = db.Column(db.String)
     ended = db.Column(db.Boolean, default=False)
@@ -132,7 +124,8 @@ class Option(db.Model, CRUDMixin):
 
 
 
-class Vote(db.Model, CRUDMixin):
-    id = db.Column(db.Integer, primary_key=True)
-    option_id = db.Column(db.Integer, db.ForeignKey('option.id'))
-    user_id = db.Column(db.String, nullable=True)
+class Vote(db.Model):
+    poll_id = db.Column(db.Integer, db.ForeignKey('poll.id'), primary_key=True)
+    option_id = db.Column(db.Integer, db.ForeignKey('option.id'), primary_key=True)
+    user_id = db.Column(db.String, primary_key=True)
+    user_name = db.Column(db.String, nullable=True)
