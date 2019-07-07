@@ -7,6 +7,7 @@ from slackclient import SlackClient
 from slackeventsapi import SlackEventAdapter
 from raven.contrib.flask import Sentry
 
+from slacker.blueprints import ovimanagement, interactivity, stickers
 from slacker.utils import reply, is_user_message, add_user
 from .manage import test, clean, init_db_command
 from .database import db
@@ -44,6 +45,9 @@ def register_blueprints(app):
     """Register Flask blueprints."""
     app.register_blueprint(commands.bp)
     app.register_blueprint(retroapp.bp)
+    app.register_blueprint(ovimanagement.bp)
+    app.register_blueprint(interactivity.bp)
+    app.register_blueprint(stickers.bp)
 
 
 def register_commands(app):

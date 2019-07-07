@@ -114,6 +114,14 @@ def reply(response, status=200, response_type=JSON_TYPE):
     return jsonify(response), status, response_type
 
 
+def ephemeral_reply(text):
+    resp = {
+        'text': text,
+        "response_type": 'ephemeral',
+    }
+    return reply(resp)
+
+
 def command_response(text, **kwargs):
     response = {
         'text': text,

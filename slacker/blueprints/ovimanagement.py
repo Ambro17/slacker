@@ -1,8 +1,15 @@
 from flask import request, current_app as app, make_response
 
-from slacker.utils import BaseBlueprint
+from slacker.utils import BaseBlueprint, reply
 
 bp = BaseBlueprint('ovi', __name__, url_prefix='/ovi')
+
+@bp.route('/', methods=('GET', 'POST'))
+def index():
+    return reply({
+        'text': 'Ovi Management',
+        'commands': ['start', 'stop', 'info', 'redeploy']
+    })
 
 
 @bp.route('/register', methods=('GET', 'POST'))

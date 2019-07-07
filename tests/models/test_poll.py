@@ -1,6 +1,7 @@
 import pytest
 from sqlalchemy.orm.exc import FlushError
 
+from slacker.api.poll import user_has_voted
 from slacker.models.poll import Poll
 from tests.factorium import OptionFactory, PollFactory, VoteFactory, UserFactory
 
@@ -125,3 +126,16 @@ def test_dont_accept_multiple_votes_from_the_same_user(db):
     with pytest.raises(FlushError, match=r'New instance .* conflicts with persistent instance'):
         VoteFactory(poll=poll, option=op1, user_id=user.id)
         db.session.flush()
+
+
+def test_user_has_voted(db):
+    # Non-existent user has not voted on non-existing poll
+    assert user_has_voted(1, 0) is False
+    op1 = OptionFactory(number=2, text='you')
+    poll = PollFactory(question='who?', options=(op1, ))
+    user = UserFactory()
+
+    assert user_has_voted(user.id, poll.id) is False
+
+    VoteFactory(poll=poll, option=op1, user_id=user.id)
+    assert user_has_voted(user.id, poll.id) is True

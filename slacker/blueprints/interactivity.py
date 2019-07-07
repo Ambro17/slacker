@@ -4,7 +4,6 @@ This module handles those interactions. Validating user input, sending the corre
 necessary.
 """
 import json
-from abc import ABC, abstractmethod
 
 from loguru import logger
 from flask import request, current_app as the_app
@@ -14,7 +13,7 @@ from slacker.api.aws.aws import load_vms_info, save_user_vms
 from slacker.api.poll import user_has_voted
 from slacker.models import Poll, Vote
 from slacker.models.user import get_or_create_user
-from slacker.utils import BaseBlueprint, reply
+from slacker.utils import BaseBlueprint, reply, ephemeral_reply
 
 bp = BaseBlueprint('interactive', __name__, url_prefix='/interactive')
 
@@ -166,7 +165,7 @@ def message_actions():
             # Add vote for chosen option
             user_id = action['user']['id']
             if user_has_voted(user_id, poll.id):
-                return reply('You have already voted.')
+                return ephemeral_reply('You have already voted.')
 
             db.session.add(Vote(option_id=op.id, user_id=user_id))
             db.session.commit()
