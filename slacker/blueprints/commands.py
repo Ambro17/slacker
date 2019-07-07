@@ -301,7 +301,6 @@ def message_actions():
             db.session.add(Vote(option_id=op.id, user_id=user_id))
             db.session.commit()
 
-
             blocks = action['message']['blocks']
             # Update block's text with new votes
             blocks[0]['text']['text'] = str(poll)

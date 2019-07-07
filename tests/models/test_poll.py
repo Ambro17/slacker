@@ -125,4 +125,3 @@ def test_dont_accept_multiple_votes_from_the_same_user(db):
     with pytest.raises(FlushError, match=r'New instance .* conflicts with persistent instance'):
         VoteFactory(poll=poll, option=op1, user_id=user.id)
         db.session.flush()
-
