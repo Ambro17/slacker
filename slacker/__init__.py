@@ -74,8 +74,6 @@ def register_event_handlers(app):
                                endpoint="/slack/events",
                                server=app)
 
-    msg_regex = re.compile(r'!([a-z0-9_]){3,}', re.IGNORECASE)  # !<trigger> & len(trigger) >= 3
-
     @events.on("message")
     def handle_message(event_data):
         """Save new users"""
@@ -85,27 +83,6 @@ def register_event_handlers(app):
             message = event.get('text')
             if message is None:
                 return
-
-            # Handle message triggers. Improvement: Save triggers as classes attributes and iterate over all of them,
-            match = msg_regex.search(message)
-            if match:
-                logger.debug('Handling message %r' % message)
-                key = match.group(1)
-                image_j = [{
-                    "type": "image",
-                    "title": {
-                        "type": "plain_text",
-                        "text": "hola "
-                    },
-                    "image_url": "https://stickeroid.com/uploads/pic/082218/thumb/stickeroid_5bf547dc0f81a.png",
-                    "alt_text": "chau"
-                }]
-                r = app.slack_cli.api_call("chat.postMessage", channel=event['channel'], blocks=image_j)
-                logger.debug(r)
-                # image = get_image(key)
-                # if image:
-                #     send_message(image)
-
 
 
     @events.on("reaction_added")

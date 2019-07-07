@@ -114,7 +114,7 @@ class Poll(db.Model, CRUDMixin):
         return f'*{self.question}?*\n{self.options_to_string()}'
 
 
-class Option(db.Model, CRUDMixin):
+class Option(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     poll_id = db.Column(db.Integer, db.ForeignKey('poll.id'))
     number = db.Column(db.Integer, nullable=False)
