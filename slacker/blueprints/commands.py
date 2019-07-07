@@ -41,7 +41,7 @@ def subte():
 
 @bp.route('/celery', methods=('GET', 'POST'))
 def celery():
-    add_together.delay(5, 3)
+    res = add_together.delay(5, 3)
     return 'Task sent'
 
 
