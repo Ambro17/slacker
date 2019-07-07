@@ -1,12 +1,12 @@
 import os
-import re
 
-from flask import Flask
 from loguru import logger
+from flask import Flask
 from slackclient import SlackClient
 from slackeventsapi import SlackEventAdapter
 from raven.contrib.flask import Sentry
 
+from slacker.async import celery
 from slacker.blueprints import ovimanagement, interactivity, stickers
 from slacker.utils import reply, is_user_message, add_user
 from .manage import test, clean, init_db_command
@@ -29,6 +29,8 @@ def create_app(config_object='slacker.settings'):
 
     app.slack_cli = SlackClient(os.environ["BOT_TOKEN"])
     register_event_handlers(app)
+
+    bind_app_to_async_queue(celery, app)
 
     return app
 
@@ -101,3 +103,16 @@ def register_event_handlers(app):
     @events.on("error")
     def error_handler(err):
         app.slack_cli.api_call("chat.postMessage", channel=err['channel'], text='Sh*t happens')
+
+
+def bind_app_to_async_queue(celery, app):
+    """Bind celery instance to app in order to provide context"""
+    celery.conf.update(app.config)
+
+    class ContextTask(celery.Task):
+        """Provide app context to all celery tasks"""
+        def __call__(self, *args, **kwargs):
+            with app.app_context():
+                return self.run(*args, **kwargs)
+
+    celery.Task = ContextTask
