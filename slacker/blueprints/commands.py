@@ -7,6 +7,7 @@ from slacker.api.aws.aws import load_vms_info, save_user_vms
 from slacker.api.feriados import get_feriadosarg
 from slacker.api.hoypido import get_hoypido
 from slacker.api.stickers import show_stickers, lookup_sticker, sticker_add
+from slacker.api.poll import user_has_voted
 from slacker.api.subte import get_subte
 from slacker.database import db
 from slacker.models.poll import Poll, Vote
@@ -284,26 +285,30 @@ def message_actions():
         elif the_action['action_id'].startswith('poll_vote'):
             poll_id = the_action['block_id']
             poll = Poll.find(id=poll_id)
-            if poll is None:
+            if not poll:
                 return reply('Poll not found.')
 
             vote_choice = the_action['value']
             op = next((op for op in poll.options if op.number == int(vote_choice)), None)
-            if op is None:
+            if not op:
                 return reply('Vote choice not found')
 
             # Add vote for chosen option
-            db.session.add(Vote(option_id=op.id))
+            user_id = action['user']['id']
+            if user_has_voted(user_id, poll.id):
+                return reply('You have already voted.')
+
+            db.session.add(Vote(option_id=op.id, user_id=user_id))
             db.session.commit()
 
-            # Update poll text
-            # channel, text, ts, blocks
-            channel = action['channel']['id']
+
             blocks = action['message']['blocks']
-            # Update block first text section with new votes
+            # Update block's text with new votes
             blocks[0]['text']['text'] = str(poll)
-            ts = action['message']['ts']
-            r = the_app.slack_cli.api_call("chat.update", channel=channel, ts=ts, blocks=blocks)
+            r = the_app.slack_cli.api_call("chat.update",
+                                           channel=action['channel']['id'],
+                                           ts=action['message']['ts'],
+                                           blocks=blocks)
             if not r['ok']:
                 logger.error(r)
                 return reply('Error updating vote')

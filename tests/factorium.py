@@ -110,7 +110,6 @@ class OptionFactory(BaseFactory):
         model = Option
 
     id = factory.sequence(lambda n: n+1)
-    poll = factory.SubFactory(PollFactory)
     number = factory.fuzzy.FuzzyChoice(list(range(1, 11)))
     text = factory.fuzzy.FuzzyText(length=20)
     votes = []
@@ -119,5 +118,3 @@ class OptionFactory(BaseFactory):
 class VoteFactory(BaseFactory):
     class Meta:
         model = Vote
-
-    option = factory.SubFactory(OptionFactory)
