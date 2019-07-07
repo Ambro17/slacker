@@ -298,12 +298,12 @@ def message_actions():
         elif the_action['action_id'].startswith('poll_vote'):
             poll_id = the_action['block_id']
             poll = Poll.find(id=poll_id)
-            if poll is None:
+            if not poll:
                 return reply('Poll not found.')
 
             vote_choice = the_action['value']
             op = next((op for op in poll.options if op.number == int(vote_choice)), None)
-            if op is None:
+            if not op:
                 return reply('Vote choice not found')
 
             # Add vote for chosen option
@@ -314,12 +314,14 @@ def message_actions():
             db.session.add(Vote(option_id=op.id, user_id=user_id))
             db.session.commit()
 
-            channel = action['channel']['id']
+
             blocks = action['message']['blocks']
             # Update block's text with new votes
             blocks[0]['text']['text'] = str(poll)
-            ts = action['message']['ts']
-            r = the_app.slack_cli.api_call("chat.update", channel=channel, ts=ts, blocks=blocks)
+            r = the_app.slack_cli.api_call("chat.update",
+                                           channel=action['channel']['id'],
+                                           ts=action['message']['ts'],
+                                           blocks=blocks)
             if not r['ok']:
                 logger.error(r)
                 return reply('Error updating vote')
