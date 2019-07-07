@@ -1,21 +1,20 @@
 import os
 
+from celery import Celery
 from loguru import logger
 from flask import Flask
 from slackclient import SlackClient
 from slackeventsapi import SlackEventAdapter
 from raven.contrib.flask import Sentry
 
-from slacker.async import celery
-from slacker.blueprints import ovimanagement, interactivity, stickers
-from slacker.utils import reply, is_user_message, add_user
-from .manage import test, clean, init_db_command
 from .database import db
+from .manage import test, clean, init_db_command
 from .models.user import User
-from .blueprints import commands, retroapp
+from .utils import reply, is_user_message, add_user
+
 
 sentry = Sentry()
-
+celery = Celery(__name__, broker=os.getenv('CELERY_BROKER'), backend=os.getenv('CELERY_BACKEND'))
 
 def create_app(config_object='slacker.settings'):
     """Create and configure an instance of the Flask application."""
@@ -30,21 +29,24 @@ def create_app(config_object='slacker.settings'):
     app.slack_cli = SlackClient(os.environ["BOT_TOKEN"])
     register_event_handlers(app)
 
-    bind_app_to_async_queue(celery, app)
 
     return app
 
 
 def register_extensions(app):
-    """Register SQLAlchemy extension."""
+    """Register db, logging and task extensions."""
     db.init_app(app)
     sentry_logging = os.getenv('SENTRY_DSN')
-    if sentry_logging is not None:
+    if sentry_logging:
         sentry.init_app(app, dsn=sentry_logging)
+
+    init_celery_app(celery, app)
 
 
 def register_blueprints(app):
     """Register Flask blueprints."""
+    from .blueprints import commands, retroapp, ovimanagement, interactivity, stickers  # FIXME
+
     app.register_blueprint(commands.bp)
     app.register_blueprint(retroapp.bp)
     app.register_blueprint(ovimanagement.bp)
@@ -105,8 +107,12 @@ def register_event_handlers(app):
         app.slack_cli.api_call("chat.postMessage", channel=err['channel'], text='Sh*t happens')
 
 
-def bind_app_to_async_queue(celery, app):
-    """Bind celery instance to app in order to provide context"""
+def init_celery_app(celery, app):
+    """Bind celery instance to app in order to provide context
+
+    Side-effect:
+        Now importing celery from slacker will add an aplication context to each task.
+    """
     celery.conf.update(app.config)
 
     class ContextTask(celery.Task):

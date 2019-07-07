@@ -1,5 +1,3 @@
-import json
-
 from flask import Blueprint, current_app as the_app, request, Response
 from loguru import logger
 
