@@ -114,6 +114,14 @@ def stop():
     return command_response(':check:')
 
 
+@bp.route('/list', methods=('GET', 'POST'))
+def show_vms():
+    remote = request.form.get('text', '')
+    show_remote = '-r' in remote or '--remote' in remote
+    awsadm.list_vms(remote=show_remote)
+    return command_response(':check:')
+
+
 @bp.route('/info', methods=('GET', 'POST'))
 def info():
     alias = request.form.get('text')
