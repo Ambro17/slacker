@@ -11,7 +11,7 @@ from loguru import logger
 from slacker.models import User
 from slacker.database import db
 
-
+OK = ''
 JSON_TYPE = {'ContentType': 'application/json'}
 number_emojis = ["one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "keycap_ten"]
 
@@ -112,6 +112,13 @@ def send_message(text, msg_type='in_channel'):
 
 def reply(response, status=200, response_type=JSON_TYPE):
     return jsonify(response), status, response_type
+
+
+def reply_raw(response, status=200, response_type=JSON_TYPE):
+    if isinstance(response, dict):
+        response = jsonify(response)
+    return response, status, response_type
+
 
 
 def ephemeral_reply(text):

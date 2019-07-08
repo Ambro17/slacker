@@ -20,7 +20,7 @@ def load_vms_info(vms):
     vms_info = {}
     for vm in vms.splitlines():
         try:
-            vm_name, vmid = vm.split('=', 1)
+            vm_name, vmid = vm.split('=')
             vms_info.update({f'{vm_name.strip()}': f'{vmid.strip()}'})
         except Exception:
             logger.info("Bad vsm info format. '%r'" % vms)
@@ -38,7 +38,7 @@ def save_user_vms(user, ovi_name, ovi_token, new_user_vms):
     repeated_alias = next((alias for alias in new_user_vms if alias in existing_user_vms), False)
     if repeated_alias:
         raise DuplicateAliasException(
-            f"{repeated_alias} is already mapped to a VM. Change it and retry."
+            f"'{repeated_alias}' is already mapped to a VM. Change it and retry."
         )
 
     for alias, vm_id in new_user_vms.items():

@@ -6,14 +6,15 @@ necessary.
 import json
 
 from loguru import logger
-from flask import request, current_app as the_app
+from flask import request, current_app as the_app, make_response
 
 from slacker.database import db
 from slacker.api.aws.aws import load_vms_info, save_user_vms
 from slacker.api.poll import user_has_voted
 from slacker.models import Poll, Vote
 from slacker.models.user import get_or_create_user
-from slacker.utils import BaseBlueprint, reply, ephemeral_reply
+from slacker.tasks import send_message_async, send_ephemeral_message
+from slacker.utils import BaseBlueprint, reply, ephemeral_reply, OK, reply_raw
 
 bp = BaseBlueprint('interactive', __name__, url_prefix='/interactive')
 
@@ -26,7 +27,6 @@ def message_actions():
     logger.debug(f"Action: {action}")
 
     is_aws_submission = action["type"] == "dialog_submission" and action.get('callback_id', '').startswith('aws_callback')
-    OK = ''
     if is_aws_submission:
         # Update the message to show that we're in the process of taking their order
         form = action['submission']
@@ -61,14 +61,12 @@ def message_actions():
                 }
             else:
                 resp = OK
+
                 logger.debug("Notifying user of success")
-                # vms = '\n'.join(f':point_right: {vm}: {hash}' for vm, hash in vms_info.items())
-                # msg = f':check: Tus vms quedaron guardadas:\n{vms}'
-                # the_app.slack_cli.api_call("chat.postMessage",
-                #                            channel=action['channel']['id'],
-                #                            text=msg)  # Should be async. It takes too long and slack thinks dialog
-                #                            post went wrong
-                logger.debug("User notified")
+                vms = '\n'.join(f'`{vm}: {hash}`' for vm, hash in vms_info.items())
+                msg = f':check: Tus vms quedaron guardadas.\nUser: `{name}`\nVMs:\n{vms}'
+                promise = send_ephemeral_message.delay(msg, channel=action['channel']['id'], user=action['user']['id'])
+                logger.debug("Task %s sent." % promise)
 
 
     elif action["type"] == "block_actions":
@@ -187,4 +185,5 @@ def message_actions():
     else:
         resp = OK
 
-    return reply(resp, 200)
+
+    return reply_raw(resp)
