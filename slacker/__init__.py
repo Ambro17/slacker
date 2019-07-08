@@ -1,12 +1,13 @@
 import os
 
-from celery import Celery
 from loguru import logger
 from flask import Flask
 from slackclient import SlackClient
 from slackeventsapi import SlackEventAdapter
 from raven.contrib.flask import Sentry
 
+from slacker.celery import celery
+from slacker.celery_utils import init_celery
 from .database import db
 from .manage import test, clean, init_db_command
 from .models.user import User
@@ -14,7 +15,7 @@ from .utils import reply, is_user_message, add_user
 
 
 sentry = Sentry()
-celery = Celery(__name__, broker=os.getenv('CELERY_BROKER'), backend=os.getenv('CELERY_BACKEND'))
+
 
 def create_app(config_object='slacker.settings'):
     """Create and configure an instance of the Flask application."""
@@ -28,6 +29,7 @@ def create_app(config_object='slacker.settings'):
 
     app.slack_cli = SlackClient(os.environ["BOT_TOKEN"])
     register_event_handlers(app)
+    init_celery(celery, app)
 
 
     return app
@@ -40,7 +42,6 @@ def register_extensions(app):
     if sentry_logging:
         sentry.init_app(app, dsn=sentry_logging)
 
-    init_celery_app(celery, app)
 
 
 def register_blueprints(app):
@@ -102,23 +103,7 @@ def register_event_handlers(app):
         text = ":%s:" % emoji
         app.slack_cli.api_call("chat.postMessage", channel=channel, text=text)
 
+
     @events.on("error")
     def error_handler(err):
         app.slack_cli.api_call("chat.postMessage", channel=err['channel'], text='Sh*t happens')
-
-
-def init_celery_app(celery, app):
-    """Bind celery instance to app in order to provide context
-
-    Side-effect:
-        Now importing celery from slacker will add an aplication context to each task.
-    """
-    celery.conf.update(app.config)
-
-    class ContextTask(celery.Task):
-        """Provide app context to all celery tasks"""
-        def __call__(self, *args, **kwargs):
-            with app.app_context():
-                return self.run(*args, **kwargs)
-
-    celery.Task = ContextTask

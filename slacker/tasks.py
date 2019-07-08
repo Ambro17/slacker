@@ -1,10 +1,10 @@
-from time import sleep
+from flask import current_app
 
-from slacker import celery
+from slacker.celery import celery
 
 
 @celery.task
-def add_together(a, b):
-    sleep(5)
-    return 'hola'
+def send_message_async(message):
+    r = current_app.slack_cli.api_call('chat.postMessage', text=message, channel='#general')
+    return r['ok']
 

@@ -5,7 +5,7 @@ from slacker.api.feriados import get_feriadosarg
 from slacker.api.hoypido import get_hoypido
 from slacker.api.subte import get_subte
 from slacker.models.poll import Poll
-from slacker.tasks import add_together
+from slacker.tasks import send_message_async
 from slacker.utils import reply, command_response
 
 bp = Blueprint('commands', __name__)
@@ -31,16 +31,16 @@ def hoypido():
     return command_response(menus)
 
 
+@bp.route('/celery', methods=('GET', 'POST'))
+def celery():
+    send_message_async.delay('hola, funciona?')
+    return reply('Contesto rápido')
+
+
 @bp.route('/subte', methods=('GET', 'POST'))
 def subte():
     status = get_subte()
     return command_response(status)
-
-
-@bp.route('/celery', methods=('GET', 'POST'))
-def celery():
-    res = add_together.delay(5, 3)
-    return 'Task sent'
 
 
 @bp.route('/poll', methods=('GET', 'POST'))
