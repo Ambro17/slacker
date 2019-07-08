@@ -45,13 +45,13 @@ def help():
     - `/info`
     - `/redeploy`
     - `/snapshots`
-    
+
     *Miscellaneous*
     - `/poll`
     - `/feriados`
     - `/hoypido`
     - `/subte`
-    
+
     *Meta*
     - `/help` (Shows this message)
 
