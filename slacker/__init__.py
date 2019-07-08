@@ -46,11 +46,11 @@ def register_extensions(app):
 
 def register_blueprints(app):
     """Register Flask blueprints."""
-    from .blueprints import commands, retroapp, ovimanagement, interactivity, stickers  # FIXME
+    from .blueprints import commands, retroapp, ovi_management, interactivity, stickers  # FIXME
 
     app.register_blueprint(commands.bp)
     app.register_blueprint(retroapp.bp)
-    app.register_blueprint(ovimanagement.bp)
+    app.register_blueprint(ovi_management.bp)
     app.register_blueprint(interactivity.bp)
     app.register_blueprint(stickers.bp)
 

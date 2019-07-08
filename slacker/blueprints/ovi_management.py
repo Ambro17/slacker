@@ -72,7 +72,7 @@ def start():
     if error:
         return command_response(error)
 
-    awsadm.start_many(vm_names)
+    awsadm.start_many(vm_names)  # Should be celery task
     return command_response(':check:')
 
 

@@ -25,7 +25,7 @@ def test_user_cant_have_conflicting_aliases(db, f, slack_cli):
     OTHER_VM = 999
     repeated_alias = 'console'
     with pytest.raises(DuplicateAliasException,
-                       match=f'{repeated_alias} is already mapped to a VM. Change it and retry.'):
+                       match=f"'{repeated_alias}' is already mapped to a VM. Change it and retry."):
         save_user_vms(user, 'foo', 'bar', {repeated_alias: OTHER_VM})
 
 

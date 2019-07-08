@@ -6,14 +6,14 @@ necessary.
 import json
 
 from loguru import logger
-from flask import request, current_app as the_app, make_response
+from flask import request, current_app as the_app
 
 from slacker.database import db
 from slacker.api.aws.aws import load_vms_info, save_user_vms
 from slacker.api.poll import user_has_voted
 from slacker.models import Poll, Vote
 from slacker.models.user import get_or_create_user
-from slacker.tasks import send_message_async, send_ephemeral_message
+from slacker.tasks import send_ephemeral_message
 from slacker.utils import BaseBlueprint, reply, ephemeral_reply, OK, reply_raw
 
 bp = BaseBlueprint('interactive', __name__, url_prefix='/interactive')
