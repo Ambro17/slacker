@@ -9,9 +9,6 @@ from tests.factorium import (
     SprintFactory,
     VMFactory,
     VMOwnershipFactory,
-    PollFactory,
-    OptionFactory,
-    VoteFactory,
 )
 
 
