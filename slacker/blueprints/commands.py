@@ -1,4 +1,4 @@
-from flask import Blueprint, current_app as the_app, request, Response
+from flask import Blueprint, current_app as the_app, request
 from loguru import logger
 
 from slacker.api.feriados import get_feriadosarg
@@ -19,8 +19,50 @@ def index():
     })
 
 
+@bp.route('/help', methods=('GET', 'POST'))
+def help():
+    """Lists all bot commands."""
+    commands = """
+    *Retro Management*
+    - `/retro_help`
+    - `/add_team`
+    - `/start_sprint`
+    - `/add_retro_item`
+    - `/show_retro_items`
+    - `/end_sprint`
+    - `/team_members`
+
+    *Stickers*
+    - `/add_sticker`
+    - `/delete_sticker`
+    - `/send_sticker`
+    - `/show_stickers`
+
+    *OVI Management*
+    - `/start`
+    - `/stop`
+    - `/list`
+    - `/info`
+    - `/redeploy`
+    - `/snapshots`
+    
+    *Miscellaneous*
+    - `/poll`
+    - `/feriados`
+    - `/hoypido`
+    - `/subte`
+    
+    *Meta*
+    - `/help` (Shows this message)
+
+    *Roadmap*
+    - `/challenge`
+    """
+    return command_response(commands)
+
+
 @bp.route('/feriados', methods=('GET', 'POST'))
-def feriados() -> Response:
+def feriados():
     response = get_feriadosarg()
     return command_response(response)
 
@@ -29,12 +71,6 @@ def feriados() -> Response:
 def hoypido():
     menus = get_hoypido()
     return command_response(menus)
-
-
-@bp.route('/celery', methods=('GET', 'POST'))
-def celery():
-    send_message_async.delay('hola, funciona?')
-    return reply('Contesto rápido')
 
 
 @bp.route('/subte', methods=('GET', 'POST'))

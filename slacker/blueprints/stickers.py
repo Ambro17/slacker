@@ -38,7 +38,7 @@ def sticker_add(name, image_url):
 def send_sticker():
     sticker_name = request.form.get('text')
     if not sticker_name:
-        resp =  command_response('Error. Usage: /sticker <sticker_name>')
+        resp =  command_response('Error. Usage: `/send_sticker sticker_name`')
     else:
         resp = lookup_sticker(sticker_name)
 
