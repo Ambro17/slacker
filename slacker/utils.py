@@ -1,4 +1,4 @@
-import logging
+import re
 import unicodedata
 from functools import wraps
 
@@ -14,6 +14,10 @@ from slacker.database import db
 OK = ''
 JSON_TYPE = {'ContentType': 'application/json'}
 number_emojis = ["one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "keycap_ten"]
+
+user_id = '(?P<user_id>[^|]+)' # Everything until |
+name = '(?P<name>[^>]+)'  # Everything until >
+USER_REGEX = re.compile(rf'<@{user_id}\|{name}>')
 
 
 class BaseBlueprint(Blueprint):

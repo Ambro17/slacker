@@ -60,6 +60,7 @@ class User(db.Model):
 
 def get_or_create_user(cli, user_id):
     """Returns the user_id, creating it if necessary"""
+    logger.debug("Get or create user")
     user = db.session.query(User).filter_by(user_id=user_id).one_or_none()
     if user is not None:
         logger.debug(f"User {user.real_name} already exists")

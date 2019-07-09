@@ -13,7 +13,7 @@ from slacker.api.aws.aws import load_vms_info, save_user_vms
 from slacker.api.poll import user_has_voted
 from slacker.models import Poll, Vote
 from slacker.models.user import get_or_create_user
-from slacker.tasks import send_ephemeral_message
+from slacker.tasks import send_ephemeral_message, send_message_async
 from slacker.utils import BaseBlueprint, reply, ephemeral_reply, OK, reply_raw
 
 bp = BaseBlueprint('interactive', __name__, url_prefix='/interactive')
@@ -194,8 +194,16 @@ def handle_action(action):
 
             logger.debug('Poll vote was updated.')
 
+        elif the_action['block_id'].startswith('ping'):
+            _, user, mentioned_id = the_action['block_id'].split(':')
+            accept = the_action['value']
+            challenged_user = the_action['action_id']
+            msg = f'Challenge accepted by {challenged_user} :muscle:' if accept == 'YES' else 'Not now..'
+            send_message_async.delay(msg, channel=mentioned_id)
+
         resp = OK
     else:
+        logger.info('No handler for this action')
         resp = OK
 
 

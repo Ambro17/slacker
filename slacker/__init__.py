@@ -6,13 +6,12 @@ from slackclient import SlackClient
 from slackeventsapi import SlackEventAdapter
 from raven.contrib.flask import Sentry
 
-from slacker.celery import celery
-from slacker.celery_utils import init_celery
+from .celery import celery
+from .blueprints import commands, retroapp, ovi_management, interactivity, stickers
 from .database import db
 from .manage import test, clean, init_db_command
 from .models.user import User
 from .utils import reply, is_user_message, add_user
-
 
 sentry = Sentry()
 
@@ -29,8 +28,6 @@ def create_app(config_object='slacker.settings'):
 
     app.slack_cli = SlackClient(os.environ["BOT_TOKEN"])
     register_event_handlers(app)
-    init_celery(celery, app)
-
 
     return app
 
@@ -46,8 +43,6 @@ def register_extensions(app):
 
 def register_blueprints(app):
     """Register Flask blueprints."""
-    from .blueprints import commands, retroapp, ovi_management, interactivity, stickers  # FIXME
-
     app.register_blueprint(commands.bp)
     app.register_blueprint(retroapp.bp)
     app.register_blueprint(ovi_management.bp)
