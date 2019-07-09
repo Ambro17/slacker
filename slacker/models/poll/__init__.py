@@ -125,7 +125,7 @@ class Option(db.Model):
 
 
 class Vote(db.Model):
-    poll_id = db.Column(db.Integer, db.ForeignKey('poll.id'), primary_key=True)
+    poll_id = db.Column(db.Integer, db.ForeignKey('poll.id'), nullable=False)
     option_id = db.Column(db.Integer, db.ForeignKey('option.id'), primary_key=True)
     user_id = db.Column(db.String, primary_key=True)
     user_name = db.Column(db.String, nullable=True)

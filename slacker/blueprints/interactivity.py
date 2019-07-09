@@ -156,16 +156,21 @@ def message_actions():
                 return reply('Poll not found.')
 
             vote_choice = the_action['value']
-            op = next((op for op in poll.options if op.number == int(vote_choice)), None)
-            if not op:
-                return reply('Vote choice not found')
+            option = next((op for op in poll.options if op.number == int(vote_choice)), None)
+            if not option:
+                logger.debug('Vote choice %s not found on poll %s' % (vote_choice, poll.id))
+                return ephemeral_reply('Vote choice not found')
 
             # Add vote for chosen option
             user_id = action['user']['id']
             if user_has_voted(user_id, poll.id):
-                return ephemeral_reply('You have already voted.')
+                logger.debug('User has already voted')
+                send_ephemeral_message.delay('You have already voted.',
+                                             channel=action['channel']['id'],
+                                             user=action['user']['id'])
+                return reply_raw(OK)
 
-            db.session.add(Vote(option_id=op.id, user_id=user_id))
+            db.session.add(Vote(poll=poll, option=option, user_id=user_id))
             db.session.commit()
 
             blocks = action['message']['blocks']

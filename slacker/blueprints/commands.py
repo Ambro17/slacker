@@ -53,7 +53,7 @@ def help():
     - `/subte`
 
     *Meta*
-    - `/help` (Shows this message)
+    - `/skills` (Shows this message)
 
     *Roadmap*
     - `/challenge`
