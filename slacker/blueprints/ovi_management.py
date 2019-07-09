@@ -12,10 +12,12 @@ REDEPLOY_USAGE = "Usage: `/redeploy <vm> <snapshot_id>\nCheck `/snapshots` for a
 
 WRONG_ALIAS_MESSAGE = "You don't have a VM under alias '{alias}'"
 
-class Awsadm:
-    pass
+class OviCli:
+    def __init__(self, vms_config, name=None, token=None):
+        self.vms = vms_config
+        self.name = name
+        self.token = token
 
-awsadm = Awsadm()
 
 @bp.route('/', methods=('GET', 'POST'))
 def index():
@@ -67,35 +69,32 @@ def register():
 @bp.route('/start', methods=('GET', 'POST'))
 def start():
     alias = request.form.get('text')
-    user_id = request.form.get('user_id')
-    vm_names, error = validate_existing_alias(alias, user_id, usage_help=START_USAGE)
+    user = get_or_create_user(the_app.slack_cli, request.form.get('user_id'))
+    stored_vms = {vm.alias: vm.vm_id for vm in user.owned_vms}
+    vms, error = validate_existing_alias(alias, stored_vms, usage_help=START_USAGE)
     if error:
         return command_response(error)
 
-    awsadm.start_many(vm_names)  # Should be celery task
+    cli = OviCli(stored_vms, user.ovi_name, user.ovi_token)
+    cli.start_many(vms)  # Should be celery task
     return command_response(':check:')
 
 
-def validate_existing_alias(choice, user_id, usage_help='Missing required argument.'):
+def validate_existing_alias(choice, saved_vms, usage_help='Missing required argument.'):
     """Checks that invocation of parameter has the required args and those references are valid
 
     Returns:
         (str, None) - If choice was valid
         (None, error_msg) - If there was a problem with the choice
     """
-    aliases = None
     error = None
-
     if not choice:
         error = usage_help
-
-    user = get_or_create_user(the_app.slack_cli, user_id)
-    stored_vms = {vm.alias: vm.vm_id for vm in user.owned_vms}
 
     # Get the vm_name or vm_names as a list
     vm_names = choice.split()
 
-    missing_alias = next((alias for alias in vm_names if alias not in stored_vms), False)
+    missing_alias = next((alias for alias in vm_names if alias not in saved_vms), False)
     if missing_alias:
         error = WRONG_ALIAS_MESSAGE.format(alias=missing_alias)
 
@@ -105,12 +104,14 @@ def validate_existing_alias(choice, user_id, usage_help='Missing required argume
 @bp.route('/stop', methods=('GET', 'POST'))
 def stop():
     alias = request.form.get('text')
-    user_id = request.form.get('user_id')
-    vm_names, error = validate_existing_alias(alias, user_id, usage_help=STOP_USAGE)
+    user = get_or_create_user(the_app.slack_cli, request.form.get('user_id'))
+    stored_vms = {vm.alias: vm.vm_id for vm in user.owned_vms}
+    vm_names, error = validate_existing_alias(alias, stored_vms, usage_help=STOP_USAGE)
     if error:
         return command_response(error)
 
-    awsadm.stop_many(vm_names)
+    cli = OviCli(stored_vms, user.ovi_name, user.ovi_token)
+    cli.start_many(vm_names)
     return command_response(':check:')
 
 
@@ -118,19 +119,28 @@ def stop():
 def show_vms():
     remote = request.form.get('text', '')
     show_remote = '-r' in remote or '--remote' in remote
-    awsadm.list_vms(remote=show_remote)
+
+    user_id = request.form.get('user_id')
+    user = get_or_create_user(the_app.slack_cli, user_id)
+
+    stored_vms = {vm.alias: vm.vm_id for vm in user.owned_vms}
+    cli = OviCli(stored_vms, user.ovi_name, user.ovi_token)
+    cli.list_vms(remote=show_remote)
+
     return command_response(':check:')
 
 
 @bp.route('/info', methods=('GET', 'POST'))
 def info():
     alias = request.form.get('text')
-    user_id = request.form.get('user_id')
-    vm_names, error = validate_existing_alias(alias, user_id, usage_help=INFO_USAGE)
+    user = get_or_create_user(the_app.slack_cli, request.form.get('user_id'))
+    stored_vms = {vm.alias: vm.vm_id for vm in user.owned_vms}
+    vm_names, error = validate_existing_alias(alias, stored_vms, usage_help=INFO_USAGE)
     if error:
         return command_response(error)
 
-    awsadm.info_many(vm_names)
+    cli = OviCli(stored_vms, user.ovi_name, user.ovi_token)
+    cli.info_many(vm_names)
     return command_response(':check:')
 
 
@@ -150,10 +160,14 @@ def redeploy():
     if vm_name not in stored_vms:
         return command_response(WRONG_ALIAS_MESSAGE.format(alias=vm_name))
 
-    awsadm.redeploy(vm_name, image)
+    cli = OviCli(stored_vms, user.ovi_name, user.ovi_token)
+    cli.redeploy(vm_name, image)
     return command_response(':check:')
 
 
 @bp.route('/snapshots', methods=('GET', 'POST'))
 def snapshots():
-    awsadm.snapshots()
+    user = get_or_create_user(the_app.slack_cli, request.form.get('user_id'))
+    cli = OviCli({}, user.ovi_name, user.ovi_token)
+    cli.snapshots()
+    return command_response(':check:')
