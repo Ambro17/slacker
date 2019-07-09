@@ -202,4 +202,3 @@ def add_user(user):
         else:
             db.session.commit()
             logger.info('User %s added to db', user['id'])
-

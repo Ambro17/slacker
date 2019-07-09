@@ -21,11 +21,19 @@ bp = BaseBlueprint('interactive', __name__, url_prefix='/interactive')
 
 @bp.route("/message_actions", methods=["POST"])
 def message_actions():
-    logger.debug("Handling message action.")
-    # TODO: Respond OK ASAP and process request async
+    logger.debug("Handling message action..")
     action = json.loads(request.form["payload"])
-    logger.debug(f"Action: {action}")
+    try:
+        return handle_action(action)
+    except Exception as e:
+        send_ephemeral_message.delay(f'Something bad happened.\n`{repr(e)}`',
+                                     channel=action['channel']['id'],
+                                     user=action['user']['id'])
+        return reply_raw(OK)
 
+def handle_action(action):
+    logger.debug(f"Action: {action}")
+    # TODO: Respond OK ASAP and process request async
     is_aws_submission = action["type"] == "dialog_submission" and action.get('callback_id', '').startswith('aws_callback')
     if is_aws_submission:
         # Update the message to show that we're in the process of taking their order

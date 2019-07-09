@@ -48,6 +48,30 @@ def test_create_poll_from_string(db):
     assert sorted(options_text) == ['no', 'yes']
 
 
+def test_create_poll_from_string_options_with_spaces(db):
+    p, error = Poll.from_string('is this a question? first option, second option')
+    assert error is None
+    assert p.id
+    assert p.question == 'is this a question'
+    assert len(p.options) == 2
+    options_text = [o.text for o in p.options]
+    assert sorted(options_text) == ['first option', 'second option']
+
+
+@pytest.mark.parametrize('poll_string, question, options', [
+    ('simple question? yes no', 'simple question', {'yes', 'no'}),
+    ('question?    yes no maybe    ', 'question', {'yes', 'no', 'maybe'}),
+    ('question?    yes no, maybe    ', 'question', {'yes no', 'maybe'}),
+    ('question?  what,  yes no, maybe,    ', 'question', {'what', 'yes no', 'maybe'}),
+    ('question?   ,one,two,three   ,', 'question', {'one', 'two', 'three'}),
+    ('question? first, second,third', 'question', {'first', 'second', 'third'}),
+])
+def test_poll_from_string(db, poll_string, question, options):
+    p, _ = Poll.from_string(poll_string)
+    assert p.question == question
+    assert set([o.text for o in p.options]) == options
+
+
 def test_create_poll(db):
     option_1 = OptionFactory(number=1, text='first')
     option_2 = OptionFactory(number=2, text='second op')

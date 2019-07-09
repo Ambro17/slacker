@@ -39,30 +39,42 @@ class Poll(db.Model, CRUDMixin):
     author = db.Column(db.String)
     ended = db.Column(db.Boolean, default=False)
 
+    USAGE = 'Usage: `/poll question? yes no` or `/poll question? option with spaces, second option`'
+
     @classmethod
     def from_string(cls, poll_string):
         """Creates a poll from a well-defined string.
 
-        Format: <question>? <option>+
+        Format:
+            <question>? <options>
+            Options may be separated by simple spaces but if an option has a space on it,
+            they must be separated by comma instead.
         Examples:
             - colors? blue   # Not much of a poll, but still valid.
             - best colors? red blue green yellow
+            - best colors? light blue, light brown
 
         Returns:
             (Poll, None) - If poll_string is well-formed
             (None, error_msg) - If there was a problem on the poll_string
         """
         try:
-            question, rest = poll_string.split('?')
+            question, options = poll_string.split('?')
         except ValueError:
-            msg = 'Mal formato. Uso: `/poll pregunta? opcion1 opcion2`'
+            msg = f'Bad format. {cls.USAGE}'
             return None, msg
 
-        if not rest:
-            msg = 'Te faltaron las opciones. `/poll pregunta? op1 op2 op3`'
+        if not options:
+            msg = f'Missing poll options. {cls.USAGE}'
             return None, msg
 
-        options = rest.strip().split()
+        options = options.strip()
+        if ',' in options:
+            # we should split by commas instead of spaces. Also remove trailing spaces while splitting by comma
+            options = [o.strip() for o in options.split(',') if o.strip()]
+        else:
+            options = options.split()
+
         if len(options) > 10:
             msg = 'Sólo puede haber 10 opciones como máximo'
             return None, msg
