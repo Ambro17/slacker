@@ -108,6 +108,7 @@ To run tests just run pytest on the project dir.
 
 ## Credits
 
-Project layout was loosely inspired by [cookiecutter-flask](https://github.com/cookiecutter-flask/cookiecutter-flask) 
+Project layout was loosely inspired by [cookiecutter-flask](https://github.com/cookiecutter-flask/cookiecutter-flask)
+
 Docker Compose was heavily inspired by the work of [mattkohl and itsrifat](https://github.com/mattkohl/docker-flask-celery-redis)
 
