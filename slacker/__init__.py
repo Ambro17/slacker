@@ -1,23 +1,14 @@
-import os
-
-from loguru import logger
 from flask import Flask
-from slackclient import SlackClient
-from slackeventsapi import SlackEventAdapter
-from raven.contrib.flask import Sentry
+from dotenv import load_dotenv
 
-from .celery import celery
-from .blueprints import commands, retroapp, ovi_management, interactivity, stickers
+from .blueprints import commands, retroapp, interactivity, stickers
 from .database import db
 from .manage import test, clean, init_db_command
-from .models.user import User
 from .utils import reply, is_user_message, add_user
-
-sentry = Sentry()
-
 
 def create_app(config_object='slacker.settings'):
     """Create and configure an instance of the Flask application."""
+    load_dotenv()
     app = Flask(__name__)
     app.config.from_object(config_object)
 
@@ -26,26 +17,18 @@ def create_app(config_object='slacker.settings'):
     register_commands(app)
     register_error_handlers(app)
 
-    app.slack_cli = SlackClient(os.environ["BOT_TOKEN"])
-    register_event_handlers(app)
-
     return app
 
 
 def register_extensions(app):
     """Register db, logging and task extensions."""
     db.init_app(app)
-    sentry_logging = os.getenv('SENTRY_DSN')
-    if sentry_logging:
-        sentry.init_app(app, dsn=sentry_logging)
-
 
 
 def register_blueprints(app):
     """Register Flask blueprints."""
     app.register_blueprint(commands.bp)
     app.register_blueprint(retroapp.bp)
-    app.register_blueprint(ovi_management.bp)
     app.register_blueprint(interactivity.bp)
     app.register_blueprint(stickers.bp)
 
@@ -64,41 +47,9 @@ def register_error_handlers(app):
         return reply({'text': 'Bad request', 'error': repr(error)})
 
     @app.errorhandler(404)
-    def not_found(error):
-        return reply({'text': 'Request not found', 'error': repr(error)})
+    def bad_request(error):
+        return reply({'text': 'Invalid Request', 'error': repr(error)})
 
     @app.errorhandler(500)
-    def not_found(error):
+    def server_error(error):
         return reply({'text': 'Server error. Sh*t happens.', 'error': repr(error)})
-
-
-def register_event_handlers(app):
-    """Register handlers for slack events subscriptions"""
-    events = SlackEventAdapter(os.environ["SLACK_SIGNATURE"],
-                               endpoint="/slack/events",
-                               server=app)
-
-    @events.on("message")
-    def handle_message(event_data):
-        """Save new users"""
-        logger.debug('Processing message event:\n%r' % event_data['event'])
-        event = event_data['event']
-        if is_user_message(event):
-            message = event.get('text')
-            if message is None:
-                return
-
-
-    @events.on("reaction_added")
-    def reaction_added(event_data):
-        """Reply reaction"""
-        event = event_data["event"]
-        emoji = event["reaction"]
-        channel = event["item"]["channel"]
-        text = ":%s:" % emoji
-        app.slack_cli.api_call("chat.postMessage", channel=channel, text=text)
-
-
-    @events.on("error")
-    def error_handler(err):
-        app.slack_cli.api_call("chat.postMessage", channel=err['channel'], text='Sh*t happens')

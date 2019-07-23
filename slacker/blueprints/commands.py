@@ -1,13 +1,17 @@
-from flask import Blueprint, current_app as the_app, request
+from flask import Blueprint, current_app as the_app, request, url_for
 from loguru import logger
+
+import celery.states as states
 
 from slacker.api.feriados import get_feriadosarg
 from slacker.api.hoypido import get_hoypido
 from slacker.api.subte import get_subte
 from slacker.models.poll import Poll
 from slacker.models.user import get_or_create_user
-from slacker.tasks import send_message_async, slack_api
 from slacker.utils import reply, command_response, USER_REGEX, ephemeral_reply
+
+from slacker.worker import celery
+
 
 bp = Blueprint('commands', __name__)
 
@@ -75,9 +79,25 @@ def hoypido():
 
 
 @bp.route('/celery', methods=('GET', 'POST'))
-def celery():
-    send_message_async.delay('un mensaje')
-    return reply('celery task sent')
+def simple_test() -> str:
+    res = celery.send_task('tasks.send_message', args=['hola'])
+    return str(res.get())
+
+
+@bp.route('/test/<int:num>')
+def test(num) -> str:
+    res = celery.send_task('tasks.delayed_sum', args=[num])
+    response = f"<a href='{url_for('commands.check_task', task_id=res.id)}'>Check sent task status</a>"
+    return response
+
+
+@bp.route('/check/<string:task_id>')
+def check_task(task_id: str) -> str:
+    res = celery.AsyncResult(task_id)
+    if res.state == states.PENDING:
+        return res.state
+    else:
+        return str(res.result)
 
 
 @bp.route('/ping', methods=('GET', 'POST'))

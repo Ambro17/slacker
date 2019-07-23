@@ -13,8 +13,9 @@ from slacker.api.aws.aws import load_vms_info, save_user_vms
 from slacker.api.poll import user_has_voted
 from slacker.models import Poll, Vote
 from slacker.models.user import get_or_create_user
-from slacker.tasks import send_ephemeral_message, send_message_async
+from slacker.tasks_proxy import send_ephemeral_message
 from slacker.utils import BaseBlueprint, reply, ephemeral_reply, OK, reply_raw
+from slacker.worker import celery
 
 bp = BaseBlueprint('interactive', __name__, url_prefix='/interactive')
 
@@ -26,9 +27,9 @@ def message_actions():
     try:
         return handle_action(action)
     except Exception as e:
-        send_ephemeral_message.delay(f'Something bad happened.\n`{repr(e)}`',
-                                     channel=action['channel']['id'],
-                                     user=action['user']['id'])
+        send_ephemeral_message(f'Something bad happened.\n`{repr(e)}`',
+                               channel=action['channel']['id'],
+                               user=action['user']['id'])
         return reply_raw(OK)
 
 def handle_action(action):
@@ -73,7 +74,7 @@ def handle_action(action):
                 logger.debug("Notifying user of success")
                 vms = '\n'.join(f'`{vm}: {hash}`' for vm, hash in vms_info.items())
                 msg = f':check: Tus vms quedaron guardadas.\nUser: `{name}`\nVMs:\n{vms}'
-                promise = send_ephemeral_message.delay(msg, channel=action['channel']['id'], user=action['user']['id'])
+                promise = send_ephemeral_message(msg, channel=action['channel']['id'], user=action['user']['id'])
                 logger.debug("Task %s sent." % promise)
 
 
@@ -173,9 +174,9 @@ def handle_action(action):
             user_id = action['user']['id']
             if user_has_voted(user_id, poll.id):
                 logger.debug('User has already voted')
-                send_ephemeral_message.delay('You have already voted.',
-                                             channel=action['channel']['id'],
-                                             user=action['user']['id'])
+                send_ephemeral_message('You have already voted.',
+                                       channel=action['channel']['id'],
+                                       user=action['user']['id'])
                 return reply_raw(OK)
 
             db.session.add(Vote(poll=poll, option=option, user_id=user_id))
@@ -199,7 +200,7 @@ def handle_action(action):
             accept = the_action['value']
             challenged_user = the_action['action_id']
             msg = f'Challenge accepted by {challenged_user} :muscle:' if accept == 'YES' else 'Not now..'
-            send_message_async.delay(msg, channel=mentioned_id)
+            celery.send_task("tasks.send_message", args=(msg, mentioned_id))
 
         resp = OK
     else:
