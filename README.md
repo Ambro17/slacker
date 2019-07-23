@@ -105,7 +105,6 @@ To run tests just run pytest on the project dir.
 
 `/suscribe <subte_line>`
 
-```
 
 ## Credits
 
