@@ -5,13 +5,14 @@ services:
       context: ./slacker
       dockerfile: Dockerfile
     ports:
-     - "3000:3000"
+      - "3000:3000"
     depends_on:
       - redis
     env_file:
-    - .env
+      - .env
     volumes:
       - ./slacker:/slacker 
+
   worker:
     build:
       context: task-queue
@@ -19,6 +20,22 @@ services:
     depends_on:
       - redis
     env_file:
-    - .env
+      - task-queue/.env
+
   redis:
     image: redis
+    ports:
+      - "6379:6379"
+
+  db:
+    image: postgres:11
+    container_name: postgres_container
+    ports:
+      - "54320:5432"
+    volumes:
+      - pg_database:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_PASSWORD=${PG_PASS}
+
+volumes:
+  pg_database:

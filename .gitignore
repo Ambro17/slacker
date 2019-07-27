@@ -16,8 +16,9 @@ __pycache__/
 instance/
 
 
-# pycharm
+# IDEs
 .idea/
+.vscode/
 
 # Distribution / packaging
 .Python
