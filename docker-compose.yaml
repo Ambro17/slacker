@@ -13,7 +13,7 @@ services:
     volumes:
       - ./slacker:/slacker 
 
-  worker:
+  tasks:
     build:
       context: task-queue
       dockerfile: Dockerfile
@@ -23,7 +23,7 @@ services:
       - task-queue/.env
 
   redis:
-    image: redis
+    image: redis:alpine
     ports:
       - "6379:6379"
 

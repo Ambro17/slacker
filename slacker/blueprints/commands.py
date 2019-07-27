@@ -3,11 +3,12 @@ from loguru import logger
 
 import celery.states as states
 
+from slacker.database import db
 from slacker.api.feriados import get_feriadosarg
 from slacker.api.hoypido import get_hoypido
 from slacker.api.subte import get_subte
 from slacker.models.poll import Poll
-from slacker.models.user import get_or_create_user
+from slacker.models.user import get_or_create_user, User
 from slacker.slack_cli import slack_cli
 from slacker.utils import reply, command_response, USER_REGEX, ephemeral_reply
 
@@ -22,6 +23,13 @@ def index():
         'error': "You must specify a command.",
         'commands': ['feriados', 'hoypido', 'subte']
     })
+
+@bp.route('/dbtest', methods=('GET', 'POST'))
+def dbtest():
+    user = db.session.query(User).filter_by(user_id="1").one_or_none()
+    return {
+        'msg': f"Success! {user or 'no existe'}",
+    }
 
 
 @bp.route('/help', methods=('GET', 'POST'))
