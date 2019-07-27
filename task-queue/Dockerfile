@@ -10,4 +10,9 @@ RUN pip install -r requirements.txt
 COPY . /queue
 WORKDIR /queue
 
+RUN useradd -m slack_user
+USER slack_user
+
+EXPOSE 6379
+
 ENTRYPOINT celery worker -A tasks --loglevel=info

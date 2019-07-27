@@ -10,6 +10,9 @@ RUN pip install -r requirements.txt
 COPY . /slacker
 WORKDIR /
 
+RUN useradd -m slack_user
+USER slack_user
+
 EXPOSE 3000
 
 CMD ["gunicorn", "-w", "4", "slacker:create_app()", "-b", "0.0.0.0:3000"]
