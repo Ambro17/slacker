@@ -19,11 +19,11 @@ def add_sticker():
     except ValueError:
         return command_response('Usage: `/add_sticker mymeme https://i.imgur.com/12345678.png`')
 
-    msg = sticker_add(name, url)
+    msg = _add_sticker(name, url)
     return command_response(msg)
 
 
-def sticker_add(name, image_url):
+def _add_sticker(name, image_url):
     try:
         Sticker.create(name=name, image_url=image_url)
         msg = f'Sticker `{name}` saved'
@@ -38,7 +38,7 @@ def sticker_add(name, image_url):
 def send_sticker():
     sticker_name = request.form.get('text')
     if not sticker_name:
-        resp =  command_response('Error. Usage: `/send_sticker sticker_name`')
+        resp = command_response('Error. Usage: `/send_sticker sticker_name`')
     else:
         resp = lookup_sticker(sticker_name)
 
@@ -58,11 +58,6 @@ def lookup_sticker(sticker_name):
 
 @bp.route('/list', methods=('GET', 'POST'))
 def list_stickers():
-    stickers = show_stickers()
-    return stickers
-
-
-def show_stickers():
     stickers = Sticker.query.all()
     if not stickers:
         resp = command_response('No stickers added yet.')

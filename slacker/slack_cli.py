@@ -4,3 +4,4 @@ from dotenv import load_dotenv
 
 load_dotenv()
 Slack = WebClient(os.environ["BOT_TOKEN"])
+slack_cli = Slack

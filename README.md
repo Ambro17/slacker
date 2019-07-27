@@ -1,5 +1,5 @@
 # Slacker
-Utility bot for slack
+Slack bot for humans
 
 ## Run it with docker
 ```
@@ -43,20 +43,18 @@ $ cd task-queue && celery worker -A tasks --loglevel=info # Start worker
 ```
 The project uses Flask as a framework and follows the application factory pattern to ease testing and development.
 Tests folder replicates the hierarchy on slacker dir.
-Blueprints group bot functionality by topic. i.e Utilities for Retro Meetings have their own blueprint, commands have another one. Ideally, all features that are more complex than a simple command with an api request should have a module on blueprint.
+Blueprints group bot functionality by topic. i.e Utilities for Retro Meetings have their own blueprint, commands have another one.
+Ideally, all features that are more complex than a simple command with an api request should have a module on blueprints dir
 
 ## Commands:
-`/aws_register` - hola
-
 `/feriados [n]`
-
-`/feriado`
 
 `/hoypido`
 
 `/subte`
 
-`/poll Who's the best football player ever? Messi Lionel LioMessi`
+`/poll Who's the best football player ever? Messi, Lionel Mesi, Lio`
+
 ## Retro Blueprint
 `/add_team`
 
@@ -67,25 +65,26 @@ Blueprints group bot functionality by topic. i.e Utilities for Retro Meetings ha
 `/show_retro_items`
 
 `/end_sprint`
+
 ## Sticker Blueprint
 `/add_sticker <name> <image_url>`
 
 `/list_stickers`
 
-`/sticker <name>`
-## Ovi Blueprint
-`/ovi_register` - Fill ovi form
-
-`/ovi <start|stop|info|redeploy> <vm_alias>`
+`/send_sticker <name>`
 
 # Tests
-To run tests just run pytest on the project dir.
+To run tests run pytest on the project dir.
 
 `$ pytest`
 
 # Future features
 
-`/futbol_estoy <Dia>+` - Anotarse para el partido
+`/rooms` - List all available rooms (To ease reservations for meetings!)
+
+`/suscribe <subte_line>`
+
+`/futbol <Dia>+` - Anotarse para el partido
 
 `/paddle`
 
@@ -95,15 +94,11 @@ To run tests just run pytest on the project dir.
 
 `/code <snippet>` - Highlight code as monospace (or share a link to the snippet)
 
-`/rooms` - List all available rooms (To ease reservations for meetings!)
-
 `/room <name>` - Get location of meeting room
 
 `/on_home_office` - Set status to working for one day
 
 `/not_available [hs]` - Set as not available to discourage interruptions
-
-`/suscribe <subte_line>`
 
 
 ## Credits

@@ -8,11 +8,12 @@ import json
 from loguru import logger
 from flask import request, current_app as the_app
 
-from slacker.database import db
 from slacker.api.aws.aws import load_vms_info, save_user_vms
+from slacker.database import db
 from slacker.api.poll import user_has_voted
 from slacker.models import Poll, Vote
 from slacker.models.user import get_or_create_user
+from slacker.slack_cli import slack_cli
 from slacker.tasks_proxy import send_ephemeral_message
 from slacker.utils import BaseBlueprint, reply, ephemeral_reply, OK, reply_raw
 from slacker.worker import celery
@@ -32,10 +33,12 @@ def message_actions():
                                user=action['user']['id'])
         return reply_raw(OK)
 
+
 def handle_action(action):
     logger.debug(f"Action: {action}")
     # TODO: Respond OK ASAP and process request async
-    is_aws_submission = action["type"] == "dialog_submission" and action.get('callback_id', '').startswith('aws_callback')
+    is_aws_submission = action["type"] == "dialog_submission" and \
+                        action.get('callback_id', '').startswith('aws_callback')
     if is_aws_submission:
         # Update the message to show that we're in the process of taking their order
         form = action['submission']
@@ -54,7 +57,7 @@ def handle_action(action):
             }
         else:
             logger.debug(f"Get or create user. Id {action['user']['id']}")
-            user = get_or_create_user(the_app.slack_cli, action['user']['id'])
+            user = get_or_create_user(slack_cli, action['user']['id'])
             logger.debug("User: %s" % user.real_name)
             try:
                 logger.debug("Saving VMs..")
@@ -76,7 +79,6 @@ def handle_action(action):
                 msg = f':check: Tus vms quedaron guardadas.\nUser: `{name}`\nVMs:\n{vms}'
                 promise = send_ephemeral_message(msg, channel=action['channel']['id'], user=action['user']['id'])
                 logger.debug("Task %s sent." % promise)
-
 
     elif action["type"] == "block_actions":
         """
@@ -152,7 +154,7 @@ def handle_action(action):
                 }
             ]
             logger.debug(f'Sending sticker.. {img_url}')
-            r = the_app.slack_cli.api_call('chat.postMessage',
+            r = slack_cli.api_call('chat.postMessage',
                                            channel=action['channel']['id'],
                                            blocks=blocks)
             if not r['ok']:
@@ -185,7 +187,7 @@ def handle_action(action):
             blocks = action['message']['blocks']
             # Update block's text with new votes
             blocks[0]['text']['text'] = str(poll)
-            r = the_app.slack_cli.api_call("chat.update",
+            r = slack_cli.api_call("chat.update",
                                            channel=action['channel']['id'],
                                            ts=action['message']['ts'],
                                            blocks=blocks)
@@ -206,6 +208,5 @@ def handle_action(action):
     else:
         logger.info('No handler for this action')
         resp = OK
-
 
     return reply_raw(resp)

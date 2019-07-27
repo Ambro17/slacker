@@ -8,10 +8,10 @@ from slacker.api.hoypido import get_hoypido
 from slacker.api.subte import get_subte
 from slacker.models.poll import Poll
 from slacker.models.user import get_or_create_user
+from slacker.slack_cli import slack_cli
 from slacker.utils import reply, command_response, USER_REGEX, ephemeral_reply
 
 from slacker.worker import celery
-
 
 bp = Blueprint('commands', __name__)
 
@@ -60,10 +60,14 @@ def help():
     *Meta*
     - `/skills` (Shows this message)
 
-    *Roadmap*
-    - `/challenge`
     """
     return command_response(commands)
+
+
+@bp.route('/subte', methods=('GET', 'POST'))
+def subte():
+    status = get_subte()
+    return command_response(status)
 
 
 @bp.route('/feriados', methods=('GET', 'POST'))
@@ -76,86 +80,6 @@ def feriados():
 def hoypido():
     menus = get_hoypido()
     return command_response(menus)
-
-
-@bp.route('/celery', methods=('GET', 'POST'))
-def simple_test() -> str:
-    res = celery.send_task('tasks.send_message', args=['hola'])
-    return str(res.get())
-
-
-@bp.route('/test/<int:num>')
-def test(num) -> str:
-    res = celery.send_task('tasks.delayed_sum', args=[num])
-    response = f"<a href='{url_for('commands.check_task', task_id=res.id)}'>Check sent task status</a>"
-    return response
-
-
-@bp.route('/check/<string:task_id>')
-def check_task(task_id: str) -> str:
-    res = celery.AsyncResult(task_id)
-    if res.state == states.PENDING:
-        return res.state
-    else:
-        return str(res.result)
-
-
-@bp.route('/ping', methods=('GET', 'POST'))
-def ping():
-    text = request.form.get('text')
-    user_id = request.form.get('user_id')
-    if not text:
-        return command_response('Who are you challenging? `/ping @user`')
-
-    match = USER_REGEX.search(text)
-    if not match:
-        return command_response('Who are you challenging? `/ping @user`')
-
-    mention = match.groupdict()['user_id']
-    user = get_or_create_user(the_app.slack_cli, user_id)
-    defied_user = get_or_create_user(the_app.slack_cli, mention)
-    block = [
-        {
-            "type": "section",
-		    "text": {
-			    "type": "mrkdwn",
-			    "text": f"Ping.. :table_tennis_paddle_and_ball: from `{user.first_name}`"
-            }
-	    },
-        {
-            "type": "actions",
-            'block_id': f'ping_block:{user_id}:{defied_user.user_id}',
-            "elements": [
-                {
-                    "type": "button",
-                    "text": {
-                        "type": "plain_text",
-                        "text": "Pong"
-                    },
-                    "style": "primary",
-                    "value": "YES",
-                    "action_id": f"{defied_user.first_name}"
-                },
-                {
-                    "type": "button",
-                    "text": {
-                        "type": "plain_text",
-                        "text": "Not now"
-                    },
-                    "style": "danger",
-                    "value": "NO",
-                }
-            ]
-	    }
-    ]
-    slack_api.delay('chat.postMessage', channel=mention, blocks=block)
-    return ephemeral_reply(f'Sent challenge to {defied_user.first_name} :table_tennis_paddle_and_ball:')
-
-
-@bp.route('/subte', methods=('GET', 'POST'))
-def subte():
-    status = get_subte()
-    return command_response(status)
 
 
 @bp.route('/poll', methods=('GET', 'POST'))
@@ -193,13 +117,65 @@ def create_poll():
         msg_section,
         {'type': 'actions', 'block_id': f'{poll.id}', 'elements': block_elems}
     ]
-    r = the_app.slack_cli.api_call("chat.postMessage", channel=channel, blocks=blocks)
+    r = slack_cli.api_call("chat.postMessage", channel=channel, blocks=blocks)
     if not r['ok']:
         logger.error(r)
         return command_response('Error!')
 
     OK = ''
     return OK, 200
+
+
+@bp.route('/ping', methods=('GET', 'POST'))
+def ping():
+    text = request.form.get('text')
+    user_id = request.form.get('user_id')
+    if not text:
+        return command_response('Who are you challenging? `/ping @user`')
+
+    match = USER_REGEX.search(text)
+    if not match:
+        return command_response('Who are you challenging? `/ping @user`')
+
+    mention = match.groupdict()['user_id']
+    user = get_or_create_user(slack_cli, user_id)
+    defied_user = get_or_create_user(slack_cli, mention)
+    block = [
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": f"Ping.. :table_tennis_paddle_and_ball: from `{user.first_name}`"
+            }
+        },
+        {
+            "type": "actions",
+            'block_id': f'ping_block:{user_id}:{defied_user.user_id}',
+            "elements": [
+                {
+                    "type": "button",
+                    "text": {
+                        "type": "plain_text",
+                        "text": "Pong"
+                    },
+                    "style": "primary",
+                    "value": "YES",
+                    "action_id": f"{defied_user.first_name}"
+                },
+                {
+                    "type": "button",
+                    "text": {
+                        "type": "plain_text",
+                        "text": "Not now"
+                    },
+                    "style": "danger",
+                    "value": "NO",
+                }
+            ]
+        }
+    ]
+    celery.send_task("tasks.send_message_with_blocks", args=(block, mention))
+    return ephemeral_reply(f'Sent challenge to {defied_user.first_name} :table_tennis_paddle_and_ball:')
 
 
 @bp.errorhandler(500)
