@@ -1,3 +1,4 @@
+import logging
 import os
 import time
 from typing import List
@@ -8,35 +9,36 @@ from slack import WebClient
 
 load_dotenv()
 
+logger = logging.getLogger(__name__)
+
 CELERY_BROKER_URL = os.environ['CELERY_BROKER']
 CELERY_RESULT_BACKEND = os.environ['CELERY_BACKEND']
 
 celery = Celery('tasks', broker=CELERY_BROKER_URL, backend=CELERY_RESULT_BACKEND)
+Slack = WebClient(os.environ["BOT_TOKEN"])
 
 
 class SlackTask(celery.Task):
     """Slack task wrapper to notify user of what happened with the task"""
 
     def after_return(self, status, retval, task_id, args, kwargs, einfo):
-        success, error_msg = retval
+        try:
+            success, error_msg = retval
+        except ValueError:
+            logger.error(f'{retval} {args} {kwargs} {einfo} {task_id}')
+            return
+
         if not success:
             Slack.chat_postEphemeral(
-                channel='#errors', user='@Ambro', text=f'{task_id}\n{error_msg}\n{args}\n{kwargs}\n{einfo}', **kwargs
+                channel='#errors',
+                user='@Ambro',
+                text=f'{task_id}\n{error_msg}\n{args}\n{kwargs}\n{einfo}',
+                **kwargs
             )
             # Notify user on private message
 
-
-Slack = WebClient(os.environ["BOT_TOKEN"])
-
-
 class ResponseNotOK(Exception):
     """Slack api request was not successfull"""
-
-
-@celery.task
-def delayed_sum(x: int) -> int:
-    time.sleep(2)
-    return x + 10
 
 
 @celery.task(base=SlackTask)
