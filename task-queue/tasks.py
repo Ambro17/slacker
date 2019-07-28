@@ -11,8 +11,8 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
-CELERY_BROKER_URL = os.environ['CELERY_BROKER']
-CELERY_RESULT_BACKEND = os.environ['CELERY_BACKEND']
+CELERY_BROKER_URL = os.environ['REDIS_URL']
+CELERY_RESULT_BACKEND = os.environ['REDIS_URL']
 
 celery = Celery('tasks', broker=CELERY_BROKER_URL, backend=CELERY_RESULT_BACKEND)
 Slack = WebClient(os.environ["BOT_TOKEN"])
