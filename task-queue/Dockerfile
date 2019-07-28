@@ -15,4 +15,4 @@ USER slack_user
 
 EXPOSE 6379
 
-ENTRYPOINT celery worker -A tasks --loglevel=info
+CMD celery worker -A tasks --loglevel=info
