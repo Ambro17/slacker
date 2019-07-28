@@ -1,5 +1,6 @@
 import traceback
 
+import requests
 from loguru import logger
 from sqlalchemy.exc import IntegrityError
 
@@ -22,8 +23,21 @@ def add_sticker():
     except ValueError:
         return command_response('Usage: `/add_sticker mymeme https://i.imgur.com/12345678.png`')
 
+    reachable = _check_reachable_url(url)
+    if not reachable:
+        return command_response('Specified image url is not reachable :electric_plug:. Maybe you mistyped?')
+
     msg = _add_sticker(user_id, name, url)
     return command_response(msg)
+
+
+def _check_reachable_url(url):
+    try:
+        r = requests.get(url, timeout=2)
+        return r.status_code == 200
+    except Exception as e:
+        logger.error(f'Not reachable URL: {repr(e)}')
+        return False
 
 
 def _add_sticker(author, name, image_url):

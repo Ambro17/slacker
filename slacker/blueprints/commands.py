@@ -1,14 +1,11 @@
-from flask import Blueprint, current_app as the_app, request, url_for
+from flask import Blueprint, request
 from loguru import logger
 
-import celery.states as states
-
-from slacker.database import db
 from slacker.api.feriados import get_feriadosarg
-from slacker.api.hoypido import get_hoypido
+from slacker.api.hoypido import get_hoypido_specials, get_hoypido_by_day, get_hoypido_all
 from slacker.api.subte import get_subte
 from slacker.models.poll import Poll
-from slacker.models.user import get_or_create_user, User
+from slacker.models.user import get_or_create_user
 from slacker.slack_cli import slack_cli, Slack
 from slacker.utils import reply, command_response, USER_REGEX, ephemeral_reply
 
@@ -29,6 +26,12 @@ def index():
 def help():
     """Lists all bot commands."""
     commands = """
+    *General*
+    - `/poll`
+    - `/feriados`
+    - `/hoypido`
+    - `/subte`
+
     *Retro Management*
     - `/retro_help`
     - `/add_team`
@@ -44,19 +47,13 @@ def help():
     - `/send_sticker`
     - `/show_stickers`
 
-    *OVI Management*
+    *OVI Management (Soon ™)*
     - `/start`
     - `/stop`
     - `/list`
     - `/info`
     - `/redeploy`
     - `/snapshots`
-
-    *Miscellaneous*
-    - `/poll`
-    - `/feriados`
-    - `/hoypido`
-    - `/subte`
 
     *Meta*
     - `/skills` (Shows this message)
@@ -77,9 +74,26 @@ def feriados():
     return command_response(response)
 
 
-@bp.route('/hoypido', methods=('GET', 'POST'))
+@bp.route('/hoypido_all', methods=('GET', 'POST'))
 def hoypido():
-    menus = get_hoypido()
+    menus = get_hoypido_all()
+    return command_response(menus)
+
+
+@bp.route('/hoypido_specials', methods=('GET', 'POST'))
+def hoypido_specials():
+    menus = get_hoypido_specials()
+    return command_response(menus)
+
+
+@bp.route('/hoypido_by_day', methods=('GET', 'POST'))
+def hoypido_by_day():
+    day = request.form.get('text', '')
+    if day.upper() not in set('LMXJVS'):
+        opts = "`L`, `M`, `X`, `J` and `V`"
+        return command_response(f'You forgot to specify a day. Options are: {opts}')
+
+    menus = get_hoypido_by_day(day)
     return command_response(menus)
 
 
@@ -176,7 +190,7 @@ def ping():
         }
     ]
     celery.send_task("tasks.send_message_with_blocks", args=(block, mention))
-    return ephemeral_reply(f'Sent challenge to {defied_user.first_name} :table_tennis_paddle_and_ball:')
+    return ephemeral_reply(f'{defied_user.first_name} was challenged :table_tennis_paddle_and_ball:')
 
 
 @bp.errorhandler(500)

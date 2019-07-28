@@ -174,7 +174,7 @@ def handle_action(action):
             user_id = action['user']['id']
             if user_has_voted(user_id, poll.id):
                 logger.debug('User has already voted')
-                send_ephemeral_message('You have already voted.',
+                send_ephemeral_message('Cheater! You have already voted.',
                                        channel=action['channel']['id'],
                                        user=action['user']['id'])
                 return reply_raw(OK)

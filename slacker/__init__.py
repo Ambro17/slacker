@@ -6,6 +6,7 @@ from .database import db
 from .manage import test, clean, init_db_command
 from .utils import reply, is_user_message, add_user
 
+
 def create_app(config_object='slacker.settings'):
     """Create and configure an instance of the Flask application."""
     load_dotenv()
