@@ -24,13 +24,6 @@ def index():
         'commands': ['feriados', 'hoypido', 'subte']
     })
 
-@bp.route('/dbtest', methods=('GET', 'POST'))
-def dbtest():
-    user = db.session.query(User).filter_by(user_id="1").one_or_none()
-    return {
-        'msg': f"Success! {user or 'no existe'}",
-    }
-
 
 @bp.route('/help', methods=('GET', 'POST'))
 def help():
