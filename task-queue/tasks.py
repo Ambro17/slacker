@@ -24,8 +24,9 @@ class SlackTask(celery.Task):
     def after_return(self, status, retval, task_id, args, kwargs, einfo):
         try:
             success, error_msg = retval
-        except ValueError:
+        except Exception as e:
             logger.error(f'{retval} {args} {kwargs} {einfo} {task_id}')
+            logger.error(f'Original exc: {repr(e)}')
             return
 
         if not success:
@@ -36,6 +37,7 @@ class SlackTask(celery.Task):
                 **kwargs
             )
             # Notify user on private message
+
 
 class ResponseNotOK(Exception):
     """Slack api request was not successfull"""
