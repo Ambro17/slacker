@@ -15,12 +15,12 @@ services:
 
   tasks:
     build:
-      context: task-queue
+      context: task_queue
       dockerfile: Dockerfile
     depends_on:
       - redis
     env_file:
-      - task-queue/.env
+      - task_queue/.env
 
   redis:
     image: redis:alpine

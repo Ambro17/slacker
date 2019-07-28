@@ -6,11 +6,11 @@ necessary.
 import json
 
 from loguru import logger
-from flask import request, current_app as the_app
+from flask import request
 
 from slacker.api.aws.aws import load_vms_info, save_user_vms
-from slacker.database import db
 from slacker.api.poll import user_has_voted
+from slacker.database import db
 from slacker.models import Poll, Vote
 from slacker.models.user import get_or_create_user
 from slacker.slack_cli import slack_cli, Slack
