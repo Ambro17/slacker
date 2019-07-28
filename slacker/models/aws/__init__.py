@@ -15,6 +15,5 @@ class VMOwnership(db.Model):
     user = db.relationship("User", backref=db.backref("owned_vms", cascade='all, delete-orphan'))
     vm = db.relationship("VM", backref=db.backref("owners", cascade='all, delete-orphan'))
 
-
     def __str__(self):
         return f"VMOwnership(user_id={self.user_id}, vm_id={self.vm_id}, alias={self.alias})"

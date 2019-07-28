@@ -9,7 +9,7 @@ from slacker.api.hoypido import get_hoypido
 from slacker.api.subte import get_subte
 from slacker.models.poll import Poll
 from slacker.models.user import get_or_create_user, User
-from slacker.slack_cli import slack_cli
+from slacker.slack_cli import slack_cli, Slack
 from slacker.utils import reply, command_response, USER_REGEX, ephemeral_reply
 
 from slacker.worker import celery
@@ -125,7 +125,7 @@ def create_poll():
         msg_section,
         {'type': 'actions', 'block_id': f'{poll.id}', 'elements': block_elems}
     ]
-    r = slack_cli.api_call("chat.postMessage", channel=channel, blocks=blocks)
+    r = Slack.chat_postMessage(channel=channel, blocks=blocks)
     if not r['ok']:
         logger.error(r)
         return command_response('Error!')

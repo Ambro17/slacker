@@ -124,7 +124,6 @@ def reply_raw(response, status=200, response_type=JSON_TYPE):
     return response, status, response_type
 
 
-
 def ephemeral_reply(text):
     resp = {
         'text': text,

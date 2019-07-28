@@ -47,7 +47,7 @@ def add_team() -> str:
         """
         name, members = text.split(maxsplit=1)
         users = [m.groupdict() for m in USER_REGEX.finditer(members)]
-        return name.strip(), users
+        return name.strip().upper(), users
 
     def get_user_id_from_members(users):
         user_ids = []

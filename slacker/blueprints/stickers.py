@@ -1,9 +1,11 @@
+import traceback
+
 from loguru import logger
 from sqlalchemy.exc import IntegrityError
 
 from slacker.database import db
 from slacker.models.stickers import Sticker
-from slacker.utils import command_response, sticker_response
+from slacker.utils import command_response, sticker_response, reply
 from flask import request
 
 from slacker.utils import BaseBlueprint
@@ -14,23 +16,24 @@ bp = BaseBlueprint('sticker', __name__, url_prefix='/sticker')
 @bp.route('/add', methods=('GET', 'POST'))
 def add_sticker():
     text = request.form.get('text')
+    user_id = request.form.get('user_id')
     try:
         name, url = text.split()
     except ValueError:
         return command_response('Usage: `/add_sticker mymeme https://i.imgur.com/12345678.png`')
 
-    msg = _add_sticker(name, url)
+    msg = _add_sticker(user_id, name, url)
     return command_response(msg)
 
 
-def _add_sticker(name, image_url):
+def _add_sticker(author, name, image_url):
     try:
-        Sticker.create(name=name, image_url=image_url)
+        Sticker.create(author=author, name=name, image_url=image_url)
         msg = f'Sticker `{name}` saved'
-    except IntegrityError:
-        logger.exception('Sticker not saved. Args: %s %s' % (name, image_url))
+    except IntegrityError as e:
+        db.session.rollback()
+        logger.error(f'Sticker not saved. Args: {name} {image_url}\nException: {repr(e)}')
         msg = f'Something went wrong. Is the sticker name `{name}` taken already?'
-
     return msg
 
 
@@ -92,14 +95,27 @@ def list_stickers():
 def delete_sticker():
     sticker_name = request.form.get('text')
     if not sticker_name:
-        return command_response('Bad Usage. /delete_sticker <name>.\nNote: Only the author can delete stickers')
+        return command_response('Bad Usage. /delete_sticker <name>.\n'
+                                'Note: Only the original uploader can delete the sticker')
 
     user_id = request.form.get('user_id')
     sticker = Sticker.query.filter_by(name=sticker_name, author=user_id).one_or_none()
     if not sticker:
-        msg = f'No sticker found under {sticker_name}'
+        msg = f'No sticker found under {sticker_name}. Are you the original uploader?'
     else:
         db.session.delete(sticker)
         msg = f'{sticker_name} deleted :check:'
 
     return command_response(msg)
+
+
+@bp.errorhandler(500)
+def not_found(error):
+    exception_text = traceback.format_exc()
+    logger.error(f'Error: {repr(error)}\nTraceback:\n{exception_text}')
+    resp = {
+        'text': f'You hurt the bot :face_with_head_bandage:.. Be gentle when speaking with him.\n'
+                f'Error: `{repr(error)}`'
+    }
+
+    return reply(resp)

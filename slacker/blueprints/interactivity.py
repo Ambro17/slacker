@@ -13,7 +13,7 @@ from slacker.database import db
 from slacker.api.poll import user_has_voted
 from slacker.models import Poll, Vote
 from slacker.models.user import get_or_create_user
-from slacker.slack_cli import slack_cli
+from slacker.slack_cli import slack_cli, Slack
 from slacker.tasks_proxy import send_ephemeral_message
 from slacker.utils import BaseBlueprint, reply, ephemeral_reply, OK, reply_raw
 from slacker.worker import celery
@@ -154,9 +154,7 @@ def handle_action(action):
                 }
             ]
             logger.debug(f'Sending sticker.. {img_url}')
-            r = slack_cli.api_call('chat.postMessage',
-                                           channel=action['channel']['id'],
-                                           blocks=blocks)
+            r = Slack.chat_postMessage(channel=action['channel']['id'], blocks=blocks)
             if not r['ok']:
                 logger.error("Sticker not sent. %s" % r)
 
@@ -187,10 +185,7 @@ def handle_action(action):
             blocks = action['message']['blocks']
             # Update block's text with new votes
             blocks[0]['text']['text'] = str(poll)
-            r = slack_cli.api_call("chat.update",
-                                           channel=action['channel']['id'],
-                                           ts=action['message']['ts'],
-                                           blocks=blocks)
+            r = Slack.chat_update(channel=action['channel']['id'], ts=action['message']['ts'], blocks=blocks)
             if not r['ok']:
                 logger.error(r)
                 return reply('Error updating vote')

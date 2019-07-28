@@ -2,6 +2,7 @@ from loguru import logger
 
 from slacker.database import db
 from slacker.exceptions import SlackerException
+from slacker.slack_cli import Slack
 
 
 class ResponseNotOkException(SlackerException):
@@ -67,7 +68,7 @@ def get_or_create_user(cli, user_id):
         return user
 
     logger.debug("Requesting user info")
-    resp = cli.api_call("users.info", user=user_id)
+    resp = Slack.users_info(user=user_id)
     if resp['ok']:
         logger.debug("Info obtained")
         new_user = User.from_json(resp['user'])
