@@ -5,7 +5,7 @@ ENV CELERY_BACKEND redis://redis:6379/0
 ENV C_FORCE_ROOT true
 
 COPY requirements.txt ./
-RUN pip install -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . /queue
 WORKDIR /queue
