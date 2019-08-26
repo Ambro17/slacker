@@ -10,6 +10,38 @@ from slacker.api.retro.retro import (
 from slacker.models import Sprint, RetroItem
 
 
+def test_index(client):
+    response = client.get('/')
+
+    assert response.status_code == 200
+    assert response.content_type == 'application/json'
+    assert response.json == {
+        'error': 'You must specify a command.',
+        'commands': ['feriados', 'hoypido', 'subte'],
+    }
+
+
+def test_retro_index(client):
+    response = client.get('/retro')
+
+    expected_response = {
+        'error': "You must specify a retro action.",
+        'commands': [
+            'add_team', 'start_sprint', 'add_item', 'show_items', 'end_sprint'
+        ]
+    }
+
+    assert response.status_code == 200
+    assert response.content_type == 'application/json'
+    assert response.json == expected_response
+
+    response = client.get('/retro/')
+
+    assert response.status_code == 200
+    assert response.content_type == 'application/json'
+    assert response.json == expected_response
+
+
 def test_start_sprint(db, f):
     t = f.TeamFactory()
     sprint_id = start_sprint('test sprint', t.id)

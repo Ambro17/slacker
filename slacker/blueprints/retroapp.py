@@ -195,12 +195,12 @@ def not_found(error):
 
 
 @bp.errorhandler(404)
-def not_found(error):
+def bad_request(error):
     return reply({'text': 'Resource not found'})
 
 
 @bp.errorhandler(500)
-def not_found(error):
+def unexpected_thing(error):
     if isinstance(error, RetroAppException):
         # Handle expected exception (a little bit of an oximoron)
         resp = {'text': f':anger:  {str(error)}'}

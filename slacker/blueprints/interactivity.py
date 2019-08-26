@@ -8,13 +8,12 @@ import json
 from loguru import logger
 from flask import request
 
-from slacker.api.aws.aws import load_vms_info, save_user_vms
 from slacker.api.poll import user_has_voted
+from slacker.blueprints.ovi_management import handle_aws_submission
 from slacker.database import db
 from slacker.models import Poll, Vote
-from slacker.models.user import get_or_create_user
-from slacker.slack_cli import slack_cli, Slack
-from slacker.tasks_proxy import send_ephemeral_message
+from slacker.slack_cli import Slack
+from slacker.tasks_proxy import send_ephemeral_message_async
 from slacker.utils import BaseBlueprint, reply, ephemeral_reply, OK, reply_raw
 from slacker.worker import celery
 
@@ -28,121 +27,24 @@ def message_actions():
     try:
         return handle_action(action)
     except Exception as e:
-        send_ephemeral_message(f'Something bad happened.\n`{repr(e)}`',
-                               channel=action['channel']['id'],
-                               user=action['user']['id'])
+        send_ephemeral_message_async(f'Something bad happened.\n`{repr(e)}`',
+                                     channel=action['channel']['id'],
+                                     user=action['user']['id'])
         return reply_raw(OK)
 
 
 def handle_action(action):
     logger.debug(f"Action: {action}")
-    # TODO: Respond OK ASAP and process request async
-    is_aws_submission = action["type"] == "dialog_submission" and \
-                        action.get('callback_id', '').startswith('aws_callback')
-    if is_aws_submission:
-        # Update the message to show that we're in the process of taking their order
-        form = action['submission']
-        name, token, raw_vms = form['user'], form['token'], form['vms_info']
 
-        logger.debug(f"VMs input:\n{raw_vms}")
-        vms_info = load_vms_info(raw_vms)
-        logger.debug(f"User vms:\n{vms_info}")
-
-        if vms_info is None:
-            resp = {
-                'errors': [{
-                    'name': 'vms_info',
-                    'error': 'Invalid VMs format. Check the placeholder to see the correct format'
-                }]
-            }
-        else:
-            logger.debug(f"Get or create user. Id {action['user']['id']}")
-            user = get_or_create_user(slack_cli, action['user']['id'])
-            logger.debug("User: %s" % user.real_name)
-            try:
-                logger.debug("Saving VMs..")
-                save_user_vms(user, name, token, vms_info)
-                logger.debug("VMs saved")
-            except Exception as e:
-                logger.info(f"Something went bad while saving vms, {repr(e)}")
-                resp = {
-                    'errors': [{
-                        'name': 'vms_info',
-                        'error': f'{e.__class__.__name__}: {str(e)}'
-                    }]
-                }
-            else:
-                resp = OK
-
-                logger.debug("Notifying user of success")
-                vms = '\n'.join(f'`{vm}: {hash}`' for vm, hash in vms_info.items())
-                msg = f':check: Tus vms quedaron guardadas.\nUser: `{name}`\nVMs:\n{vms}'
-                promise = send_ephemeral_message(msg, channel=action['channel']['id'], user=action['user']['id'])
-                logger.debug("Task %s sent." % promise)
+    if action["type"] == "dialog_submission" and action.get('callback_id', '').startswith('aws_callback'):
+        resp = handle_aws_submission(action)
 
     elif action["type"] == "block_actions":
-        """
-        {
-            'type': 'block_actions',
-            'team': {
-                'id': 'TG4H5ANVC',
-                'domain': 'boedo'
-            },
-            'user': {
-                'id': 'UG31KD90T',
-                'username': 'ambro17.1',
-                'name': 'ambro17.1',
-                'team_id': 'TG4H5ANVC'
-            },
-            'api_app_id': 'AG4H6GBEJ',
-            'token': 'eplrfng7b3YBA93ZYNVFLUi6',
-            'container': {
-                'type': 'message',
-                'message_ts': '1561846841.001400',
-                'channel_id': 'CKSMVKQC9',
-                'is_ephemeral': True
-            },
-            'trigger_id': '679915593636.548583362998.50b265af2e667a9c6abb37c80542998f',
-            'channel': {
-                'id': 'CKSMVKQC9',
-                'name': 'test2'
-            },
-            'response_url': 'https://hooks.slack.com/actions/TG4H5ANVC/680397789861/XywBRhjn82vIgOuQrBfUxxFS',
-            'actions': [{
-                'action_id': 'send_sticker_action_id',
-                'block_id': 'send_sticker_block_id',
-                'text': {
-                    'type': 'plain_text',
-                    'text': 'Send!',
-                    'emoji': True
-                },
-                'value': 'send_sticker',
-                'style': 'primary',
-                'type': 'button',
-                'action_ts': '1561846848.181810'
-            }]
-        }            
-        """
         the_action = action['actions'][0]
         if the_action['action_id'].startswith('send_sticker_action_id'):
-            """
-            'actions': [{
-                'action_id': 'send_sticker_action_id',
-                'block_id': 'send_sticker_block_id',
-                'text': {
-                    'type': 'plain_text',
-                    'text': 'Send!',
-                    'emoji': True
-                },
-                'value': 'link',
-                'style': 'primary',
-                'type': 'button',
-                'action_ts': '1561848669.221608'
-            }]                
-            """
             _, sticker_name = the_action['action_id'].split(':', 1)
             img_url = the_action['value']
-            blocks = [
+            sticker = [
                 {
                     "type": "image",
                     "title": {
@@ -154,7 +56,7 @@ def handle_action(action):
                 }
             ]
             logger.debug(f'Sending sticker.. {img_url}')
-            r = Slack.chat_postMessage(channel=action['channel']['id'], blocks=blocks)
+            r = Slack.chat_postMessage(channel=action['channel']['id'], blocks=sticker)
             if not r['ok']:
                 logger.error("Sticker not sent. %s" % r)
 
@@ -174,9 +76,9 @@ def handle_action(action):
             user_id = action['user']['id']
             if user_has_voted(user_id, poll.id):
                 logger.debug('User has already voted')
-                send_ephemeral_message('Cheater! You have already voted.',
-                                       channel=action['channel']['id'],
-                                       user=action['user']['id'])
+                send_ephemeral_message_async('Cheater! You have already voted.',
+                                             channel=action['channel']['id'],
+                                             user=user_id)
                 return reply_raw(OK)
 
             db.session.add(Vote(poll=poll, option=option, user_id=user_id))
@@ -201,7 +103,7 @@ def handle_action(action):
 
         resp = OK
     else:
-        logger.info('No handler for this action')
+        logger.error('No handler for this action')
         resp = OK
 
     return reply_raw(resp)

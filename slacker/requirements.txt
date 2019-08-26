@@ -1,6 +1,8 @@
+--index-url=https://artifactory.corp.onapsis.com/artifactory/api/pypi/osp-python/simple
 slackclient==2.1.0
 Flask==1.1.1
 Flask-SQLAlchemy==2.4.0
+cryptography==2.7
 gunicorn==19.9.0
 psycopg2-binary==2.8.3
 celery==4.3.0

@@ -131,14 +131,14 @@ def ephemeral_reply(text):
     }
     return reply(resp)
 
-
+BOT_ICON = "https://i.imgur.com/rOpT9uS.png"
 def command_response(text, **kwargs):
     response = {
         'text': text,
         "attachments": [
             {
                 "footer": "Cuervot",
-                "footer_icon": "https://i.imgur.com/rOpT9uS.png",
+                "footer_icon": BOT_ICON,
                 "ts": time.time()
             }
         ]
