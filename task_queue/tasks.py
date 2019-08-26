@@ -4,7 +4,9 @@ from typing import List
 
 from dotenv import load_dotenv
 import celery as _celery
-from awsadm.ovicli import AWSCli as OviCli
+
+from awsadm.ovicli import OviCli
+
 
 from slack import WebClient
 
