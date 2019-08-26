@@ -38,10 +38,27 @@ day_to_int = {
 
 
 def get_comidas():
+    """
+    Output:
+    {
+        0: {
+            'pastas': ['Tallarines con Salsa Bolognesa', 'Spaghetti Mediterrxe1neo'],
+            'tartas': ['3 Empanadas de Jamxf3n y Queso ', '3 Empanadas de Verdura y Salsa Blanca']
+            'especiales': ['Tarta de Zapallitos y Queso con Ensalada Mixta']
+            'ensaladas': ['Ensalada de Lechuga, lentejas, tomate, pepino, zanahorias.']
+        },
+        [...]
+        4: {
+            'especiales': ['Salteado de carne y vegetales con arroz aromatico']
+            'ensaladas': ['Ensalada de Lechuga, lentejas, tomate, pepino, zanahorias.']
+            'sandwiches': ['6 Triples de Miga de Jamxf3n y Queso', 'Figazza de Jamon y queso']
+        }
+    }
+    """
     menu_por_dia = {}
-    r = requests.get(ONAPSIS_SALUDABLE, params={'access_token': os.getenv('HOYPIDO_TOKEN')}, timeout=3)
+    r = requests.get(ONAPSIS_SALUDABLE, params={'access_token': os.getenv('HOYPIDO_TOKEN')}, timeout=2)
     if r.status_code != 200:
-        raise SlackerException(f'Could not connect to hoypido API. Try again later. {r.status_code}-{r.reason}')
+        raise SlackerException(f'Could not connect to hoypido API. Try again later. {r.status_code}-{r.reason}-{r.url}')
 
     week_menu = r.json()
     for day_menu in week_menu:
@@ -172,6 +189,6 @@ def prettify_day_menu(day, food_types):
         # Append > to quote each dish option and join on newlines
         foods = '\n'.join(f'>{f}' for f in foods)
         # Add the food type and all its dishes options and continue with the next food type
-        menu += f"_*» {food_type.capitalize()}*_\n{foods}\n"
+        menu += f"`{food_type.capitalize()}` \n{foods}\n"
 
     return menu

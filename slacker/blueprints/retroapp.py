@@ -1,9 +1,10 @@
 import re
 import traceback
 
-from flask import request, current_app as the_app
+from flask import request
 from loguru import logger
 
+from slacker.slack_cli import slack_cli
 from slacker.api.retro.retro import start_sprint, add_item, end_sprint
 from slacker.database import db
 from slacker.exceptions import RetroAppException
@@ -46,12 +47,12 @@ def add_team() -> str:
         """
         name, members = text.split(maxsplit=1)
         users = [m.groupdict() for m in USER_REGEX.finditer(members)]
-        return name.strip(), users
+        return name.strip().upper(), users
 
     def get_user_id_from_members(users):
         user_ids = []
         for u in users:
-            user = get_or_create_user(the_app.slack_cli, u['user_id'])
+            user = get_or_create_user(slack_cli, u['user_id'])
             user_ids.append(user.user_id)
 
         return user_ids
@@ -81,7 +82,7 @@ def start_sprint_callback() -> str:
         return 'Bad usage. Usage: `/start_sprint <sprint_name>`'
 
     user_id = request.form.get('user_id')
-    user = get_or_create_user(the_app.slack_cli, user_id)
+    user = get_or_create_user(slack_cli, user_id)
 
     team = user.team
     if team is None:
@@ -100,7 +101,7 @@ def add_item_callback() -> str:
         return 'Bad usage. Usage: `/add_retro_item <text>`'
 
     user_id = request.form.get('user_id')
-    user = get_or_create_user(the_app.slack_cli, user_id)
+    user = get_or_create_user(slack_cli, user_id)
     team = user.team
     if team is None:
         msg = "You are not part of any team. Action not allowed"
@@ -118,7 +119,7 @@ def add_item_callback() -> str:
 @bp.route('/show_items', methods=('GET', 'POST'))
 def show_items() -> str:
     user_id = request.form.get('user_id')
-    user = get_or_create_user(the_app.slack_cli, user_id)
+    user = get_or_create_user(slack_cli, user_id)
     team = user.team
     if team is None:
         msg = "You are not part of any team. Action not allowed"
@@ -144,7 +145,7 @@ def show_items() -> str:
 @bp.route('/end_sprint', methods=('GET', 'POST'))
 def end_sprint_callback() -> str:
     user_id = request.form.get('user_id')
-    user = get_or_create_user(the_app.slack_cli, user_id)
+    user = get_or_create_user(slack_cli, user_id)
 
     team = user.team
     if team is None:
@@ -160,7 +161,7 @@ def end_sprint_callback() -> str:
 def team_members() -> str:
     team_name = request.form.get('text')
     if not team_name:
-        user = get_or_create_user(the_app.slack_cli, request.form.get('user_id'))
+        user = get_or_create_user(slack_cli, request.form.get('user_id'))
         if user.team is not None:
             team_name = user.team.name
         else:
@@ -194,12 +195,12 @@ def not_found(error):
 
 
 @bp.errorhandler(404)
-def not_found(error):
+def bad_request(error):
     return reply({'text': 'Resource not found'})
 
 
 @bp.errorhandler(500)
-def not_found(error):
+def unexpected_thing(error):
     if isinstance(error, RetroAppException):
         # Handle expected exception (a little bit of an oximoron)
         resp = {'text': f':anger:  {str(error)}'}

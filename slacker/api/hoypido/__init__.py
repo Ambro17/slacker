@@ -1,1 +1,1 @@
-from .hoypido import get_hoypido
+from .hoypido import get_hoypido_specials, get_hoypido_by_day, get_hoypido_all

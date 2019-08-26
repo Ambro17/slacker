@@ -1,25 +1,28 @@
-import datetime as dt
+from loguru import logger
+
 from slacker.api.hoypido.utils import (
     get_comidas,
     prettify_food_offers,
     day_to_int,
     filter_comidas,
+    day_names,
 )
 
 
-def get_hoypido() -> str:
-    comidas = get_comidas()
+def get_hoypido_specials() -> str:
+    week_menu = get_comidas()
+    final = []
+    for day, menu in week_menu.items():
+        daily_specials = menu.get('especiales')
+        if daily_specials:
+            final.append((day, daily_specials))
 
-    week_day = dt.datetime.now().weekday()
-    comidas_del_dia = filter_comidas(comidas,
-                                     lambda dia, comidas: dia == week_day)
+    res = ":carrot: *Especiales de la semana* :carrot:\n"
+    for day, offers in sorted(final):
+        foods = '\n'.join(f'> {option}' for option in offers)
+        res += f"*» {day_names[day]}:*\n{foods}\n"
 
-    if comidas_del_dia:
-        comidas_del_dia[week_day] = {food_type: foods for food_type, foods in comidas_del_dia[week_day].items()
-                                     if food_type == 'especiales'}
-
-    msg = prettify_food_offers(comidas_del_dia)
-    return msg
+    return res
 
 
 def get_hoypido_by_day(day) -> str:
@@ -34,3 +37,8 @@ def get_hoypido_by_day(day) -> str:
     msg = prettify_food_offers(comidas_del_dia)
 
     return msg
+
+
+def get_hoypido_all() -> str:
+    week_menu = get_comidas()
+    return prettify_food_offers(week_menu)

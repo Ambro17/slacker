@@ -1,22 +1,41 @@
-from flask import request, current_app as the_app, make_response
+import traceback
+from typing import List
 
+from flask import request, make_response
+from loguru import logger
+
+from slacker.database import db
+from slacker.exceptions import SlackerException
+from slacker.models import VM, VMOwnership
 from slacker.models.user import get_or_create_user
-from slacker.utils import BaseBlueprint, reply, command_response
+from slacker.slack_cli import Slack
+from slacker.tasks_proxy import (
+    start_vms_task,
+    stop_vms_task,
+    list_vms_task,
+    redeploy_vm_task,
+    get_snapshots_task,
+    send_ephemeral_message_async,
+)
+from slacker.utils import BaseBlueprint, reply, command_response, OK
 
-bp = BaseBlueprint('ovi', __name__, url_prefix='/ovi')
-
-START_USAGE = "Usage: `/start <vm_name> [<another_vm>]"
-STOP_USAGE = "Usage: `/stop <vm_name> [<another_vm>]"
-INFO_USAGE = "Usage: `/info <vm_name> [<another_vm>]"
-REDEPLOY_USAGE = "Usage: `/redeploy <vm> <snapshot_id>\nCheck `/snapshots` for available options"
+START_USAGE = "Usage: `/ovi_start <vm_name> [<vm_name> ...]`"
+STOP_USAGE = "Usage: `/ovi_stop <vm_name> [<vm_name> ...]`"
+INFO_USAGE = "Usage: `/ovi_info <vm_name> [<vm_name> ...]`"
+LIST_VMS_USAGE = "Usage: `/ovi_list_vms`"
+REDEPLOY_USAGE = "Usage: `/ovi_redeploy konsole <snapshot_id>`\nCheck `/snapshots` for available options"
 
 WRONG_ALIAS_MESSAGE = "You don't have a VM under alias '{alias}'"
 
-class OviCli:
-    def __init__(self, vms_config, name=None, token=None):
-        self.vms = vms_config
-        self.name = name
-        self.token = token
+bp = BaseBlueprint('ovi', __name__, url_prefix='/ovi')
+
+
+class OviException(SlackerException):
+    """Wrong usage of ovi api"""
+
+
+class DuplicateAliasException(SlackerException):
+    """Raised if user wants to save a vm under an alias that already maps to one oh her/his vms"""
 
 
 @bp.route('/', methods=('GET', 'POST'))
@@ -29,8 +48,8 @@ def index():
 
 @bp.route('/register', methods=('GET', 'POST'))
 def register():
-    trigger_id = request.form.get('trigger_id')
-    user_id = request.form.get('user_id')
+    """Open Register VMs dialog. interactivity blueprint will handle form input"""
+    user_id = request.form['user_id']
     dialog = {
         "callback_id": "aws_callback",
         "title": "Register your VMs",
@@ -57,117 +76,304 @@ def register():
         ]
     }
 
-    the_app.slack_cli.api_call(
-        "dialog.open",
-        trigger_id=trigger_id,
+    Slack.dialog_open(
+        trigger_id=request.form['trigger_id'],
         dialog=dialog
     )
 
     return make_response('', 200)
 
 
+def handle_aws_submission(action):
+    """Handle a form submission action and respond accordingly with OK or form errors"""
+    user_id = action['user']['id']
+
+    form = action['submission']
+    name = form['user']
+    token = form['token']
+    raw_vms = form['vms_info']
+
+    logger.debug(f"Parsing VMs input:\n{raw_vms}")
+    vms_info = load_vms_info(raw_vms)
+    logger.debug(f"User vms:\n{vms_info}")
+
+    if vms_info is None:
+        resp = {
+            'errors': [{
+                'name': 'vms_info',
+                'error': 'Invalid VMs format. Check the placeholder to see the correct format'
+            }]
+        }
+    else:
+        logger.debug(f"Get or create user. Id '{user_id}'")
+        user = get_or_create_user(Slack, user_id)
+        logger.debug("User: %s" % user.real_name)
+
+        try:
+            logger.debug(f"Saving VMs of '{user.real_name}'..")
+            save_user_vms(user, name, token, vms_info)
+            logger.debug("VMs saved")
+        except Exception as e:
+            logger.info(f"Something went bad while saving vms, {repr(e)}")
+            resp = {
+                'errors': [{
+                    'name': 'vms_info',
+                    'error': f'{e.__class__.__name__}: {str(e)}'
+                }]
+            }
+        else:
+            vms = '\n'.join(f'`{vm}: {hash}`' for vm, hash in vms_info.items())
+            msg = f':check: VMs saved successfully.\nAPI User: `{name}`\nVMs:\n{vms}'
+
+            promise = send_ephemeral_message_async(msg, channel=action['channel']['id'], user=user_id)
+            logger.debug("Task %s sent to notify user of aws submission success." % promise)
+
+            resp = OK
+
+    return resp
+
+
+def load_vms_info(vms):
+    """Load vms ids from text separated by newlines and `=`
+
+    Example:
+        console=1234
+        sensor=12356
+    Output:
+        {
+            'console': 1234,
+            'sensor': 12356
+        }
+    """
+    vms_info = {}
+    for vm in vms.splitlines():
+        try:
+            vm_name, vmid = vm.split('=')
+            vms_info.update({f'{vm_name.strip()}': f'{vmid.strip()}'})
+        except Exception:
+            logger.info("Bad vsm info format. '%r'" % vms)
+            return None
+
+    return vms_info
+
+
+def save_user_vms(user, ovi_name, ovi_token, new_user_vms):
+    existing_user_vms = {vm.alias for vm in user.owned_vms}
+    repeated_alias = next((alias for alias in new_user_vms if alias in existing_user_vms), False)
+    if repeated_alias:
+        raise DuplicateAliasException(
+            f"'{repeated_alias}' is already mapped to a VM. Change it and retry."
+        )
+
+    for alias, vm_id in new_user_vms.items():
+        logger.debug(f"Atttempting to add VM with alias={alias} and id={vm_id}")
+        vm = VM.query.get(vm_id)
+        if not vm:
+            vm = VM(id=vm_id)
+
+        owned_vm = VMOwnership.query.filter_by(alias=alias, user_id=user.id, vm_id=vm_id).one_or_none()
+        if not owned_vm:
+            logger.debug("Creating vm ownership")
+            owned_vm = VMOwnership(vm=vm, user=user, alias=alias)
+            db.session.add(owned_vm)
+        else:
+            logger.debug(f"Ignoring {str(owned_vm)} because it's already on database.")
+
+    user.ovi_name = ovi_name
+    user.ovi_token = ovi_token
+
+    db.session.commit()
+
+
+
 @bp.route('/start', methods=('GET', 'POST'))
 def start():
-    alias = request.form.get('text')
-    user = get_or_create_user(the_app.slack_cli, request.form.get('user_id'))
-    stored_vms = {vm.alias: vm.vm_id for vm in user.owned_vms}
-    vms, error = validate_existing_alias(alias, stored_vms, usage_help=START_USAGE)
-    if error:
-        return command_response(error)
+    """Start a vm owned by a user"""
+    target_vms_raw = request.form.get('text')
+    user_id = request.form['user_id']
+    channel = request.form['channel_id']
+    user = get_or_create_user(Slack, user_id)
+    try:
+        owned_vms, target_vms = _validate_ovi_request(target_vms_raw, user.owned_vms, usage_help=START_USAGE)
+    except OviException as error:
+        return command_response(str(error))
 
-    cli = OviCli(stored_vms, user.ovi_name, user.ovi_token)
-    cli.start_many(vms)  # Should be celery task
-    return command_response(':check:')
+    # Send async task
+    task_id = start_vms_task(owned_vms, target_vms, user.ovi_name, user.ovi_token,
+                             user=user_id,
+                             channel=channel)
+    logger.debug(f"Task '{task_id}' sent to start vms of user {user.real_name}. VMs: {target_vms}")
+
+    return command_response('Start VMs task sent :check:')
 
 
-def validate_existing_alias(choice, saved_vms, usage_help='Missing required argument.'):
-    """Checks that invocation of parameter has the required args and those references are valid
-
-    Returns:
-        (str, None) - If choice was valid
-        (None, error_msg) - If there was a problem with the choice
+def _validate_ovi_request(target_vms: str,
+                          user_vms: List,
+                          usage_help: str) -> (dict, List[str]):
     """
-    error = None
-    if not choice:
-        error = usage_help
+    Validates:
+        - That user specified the required parameters (target vms)
+        - That the user has at least one saved vm to manage
+        - That all target vms are valid aliases of user-owned vms
+    """
 
-    # Get the vm_name or vm_names as a list
-    vm_names = choice.split()
+    if not target_vms:
+        raise OviException(usage_help)  # User did not specify target vm to start/stop
+    if not user_vms:
+        raise OviException("You don't own any vm yet. Add them with `/register`")
 
-    missing_alias = next((alias for alias in vm_names if alias not in saved_vms), False)
+    # Split vm names into list of strings
+    targeted_vms = target_vms.split()
+    owned_vms = {vm.alias: vm.vm_id for vm in user_vms}
+
+    missing_alias = next((alias for alias in targeted_vms if alias not in owned_vms), False)
     if missing_alias:
-        error = WRONG_ALIAS_MESSAGE.format(alias=missing_alias)
+        raise OviException(WRONG_ALIAS_MESSAGE.format(alias=missing_alias))
 
-    return vm_names, error
+    return owned_vms, targeted_vms
 
 
 @bp.route('/stop', methods=('GET', 'POST'))
 def stop():
-    alias = request.form.get('text')
-    user = get_or_create_user(the_app.slack_cli, request.form.get('user_id'))
-    stored_vms = {vm.alias: vm.vm_id for vm in user.owned_vms}
-    vm_names, error = validate_existing_alias(alias, stored_vms, usage_help=STOP_USAGE)
-    if error:
-        return command_response(error)
+    target_vms = request.form.get('text')
+    user_id = request.form['user_id']
+    channel = request.form['channel_id']
+    user = get_or_create_user(Slack, user_id)
+    try:
+        user_vms, target_vms = _validate_ovi_request(target_vms, user.owned_vms, usage_help=STOP_USAGE)
+    except OviException as error:
+        return command_response(str(error))
 
-    cli = OviCli(stored_vms, user.ovi_name, user.ovi_token)
-    cli.start_many(vm_names)
-    return command_response(':check:')
+    # Send async task
+    task_id = stop_vms_task(user_vms, target_vms, user.ovi_name, user.ovi_token,
+                            user=user_id,
+                            channel=channel)
+    logger.debug(f"Task '{task_id}' sent to stop '{target_vms}' of user {user.real_name}.")
 
-
-@bp.route('/list', methods=('GET', 'POST'))
-def show_vms():
-    remote = request.form.get('text', '')
-    show_remote = '-r' in remote or '--remote' in remote
-
-    user_id = request.form.get('user_id')
-    user = get_or_create_user(the_app.slack_cli, user_id)
-
-    stored_vms = {vm.alias: vm.vm_id for vm in user.owned_vms}
-    cli = OviCli(stored_vms, user.ovi_name, user.ovi_token)
-    cli.list_vms(remote=show_remote)
-
-    return command_response(':check:')
+    return command_response('Stop VMs task sent :check:')
 
 
-@bp.route('/info', methods=('GET', 'POST'))
-def info():
-    alias = request.form.get('text')
-    user = get_or_create_user(the_app.slack_cli, request.form.get('user_id'))
-    stored_vms = {vm.alias: vm.vm_id for vm in user.owned_vms}
-    vm_names, error = validate_existing_alias(alias, stored_vms, usage_help=INFO_USAGE)
-    if error:
-        return command_response(error)
+@bp.route('/list_vms', methods=('GET', 'POST'))
+def list_vms():
+    """List VMs owned by the user on oviup"""
+    timeout = request.form.get('text', 30)
+    user_id = request.form['user_id']
+    channel_id = request.form['channel_id']
+    user = get_or_create_user(Slack, user_id)
 
-    cli = OviCli(stored_vms, user.ovi_name, user.ovi_token)
-    cli.info_many(vm_names)
-    return command_response(':check:')
+    # No need to get user owned vms nor to receive alias from user
+    task_id = list_vms_task({}, timeout, user.ovi_name, user.ovi_token,
+                            user=user_id,
+                            channel=channel_id)
+    logger.debug(f"Task '{task_id}' sent to show remote vms of user {user.real_name}.")
+
+    return command_response('List VMs task sent :check: (This may take a while..)')
 
 
 @bp.route('/redeploy', methods=('GET', 'POST'))
 def redeploy():
-    vm_name = request.form.get('text')
-    if not vm_name:
-        return command_response(REDEPLOY_USAGE)
+    target_vms = request.form.get('text')
+    if not target_vms:
+        return command_response('Bad usage. `/ovi_redeploy konsole 17`')
 
     try:
-        vm_name, image = vm_name.split()
+        alias, snapshot_id = _validate_command_syntax(target_vms)
+    except OviException as e:
+        return command_response(str(e))
+
+    user_id = request.form['user_id']
+    channel_id = request.form['channel_id']
+    user = get_or_create_user(Slack, user_id)
+    try:
+        user_vms, _ = _validate_ovi_request(alias, user.owned_vms, usage_help=REDEPLOY_USAGE)
+    except OviException as error:
+        return command_response(str(error))
+
+    # Send async task
+    task_id = redeploy_vm_task(user_vms, alias, snapshot_id,  user.ovi_name, user.ovi_token,
+                               user=user_id,
+                               channel=channel_id)
+
+    logger.debug(f"Task '{task_id}' sent to redeploy '{alias}'' of user {user.real_name} to image {snapshot_id}")
+
+    return command_response('Redeploy task sent :check:')
+
+
+def _validate_command_syntax(text: str):
+    """Syntax: <vm>: <digit>"""
+    try:
+        text = text.strip()
+        alias, snapshot_id = text.split()
     except ValueError:
-        return command_response(REDEPLOY_USAGE)
+        raise OviException('Invalid command usage. i.e: `/redeploy konsole: 10`')
 
-    user = get_or_create_user(the_app.slack_cli, request.form.get('user_id'))
-    stored_vms = {vm.alias: vm.vm_id for vm in user.owned_vms}
-    if vm_name not in stored_vms:
-        return command_response(WRONG_ALIAS_MESSAGE.format(alias=vm_name))
+    alias = alias.strip()
+    snapshot_id = snapshot_id.strip()
+    if not snapshot_id.isdigit():
+        raise OviException(f'Invalid command usage. Snapshot must be a digit, not {repr(snapshot_id)}')
+    if len(alias.split()) > 1:
+        raise OviException(f'Invalid command usage. You must specify only one vm alias. Got {alias}')
 
-    cli = OviCli(stored_vms, user.ovi_name, user.ovi_token)
-    cli.redeploy(vm_name, image)
-    return command_response(':check:')
+    return alias, snapshot_id
 
 
 @bp.route('/snapshots', methods=('GET', 'POST'))
 def snapshots():
-    user = get_or_create_user(the_app.slack_cli, request.form.get('user_id'))
-    cli = OviCli({}, user.ovi_name, user.ovi_token)
-    cli.snapshots()
-    return command_response(':check:')
+    user_id = request.form['user_id']
+    user = get_or_create_user(Slack, user_id)
+
+    # Send async task
+    task_id = get_snapshots_task(user.ovi_name, user.ovi_token, user=user_id, channel=request.form['channel_id'])
+    logger.debug(f"Task '{task_id}' sent to show available redeploy snapshots to {user.real_name}")
+
+    return command_response('Snapshots task sent :check:')
+
+
+@bp.route('/my_vms', methods=('GET', 'POST'))
+def user_owned_vms():
+    """List VMs that were added by the user into slack and can be controlled through the bot"""
+    user_id = request.form['user_id']
+    user = get_or_create_user(Slack, user_id)
+
+    user_vms = user.owned_vms
+    if not user_vms:
+        msg = f"Hey {user.first_name}, you don't own any vm yet. Start with `/ovi_register`"
+    else:
+        name = user.ovi_name or 'No name set'
+        msg = f'Ovi username: `{name}`\n'
+        msg += '\n'.join(f"`{vm.alias}: {vm.vm_id}`" for vm in user_vms)
+
+    return command_response(msg)
+
+
+@bp.route('/delete_my_vms', methods=('GET', 'POST'))
+def delete_my_vms():
+    """Delete VMs that were added by the user into slack and can be controlled through the bot"""
+    user_id = request.form['user_id']
+    user = get_or_create_user(Slack, user_id)
+
+    user_vms = user.owned_vms
+    if not user_vms:
+        msg = f"Hey {user.first_name}, you don't own any vm to delete"
+    else:
+        user.owned_vms = []
+        db.session.commit()
+        msg = "Your VMs have been deleted"
+
+    return command_response(msg)
+
+
+@bp.errorhandler(500)
+def unexpected_thing(error):
+    if isinstance(error, SlackerException):
+        # Handle expected exception (a little bit of an oximoron)
+        resp = {'text': f':anger:  {str(error)}'}
+    else:
+        exception_text = traceback.format_exc()
+        logger.error(f'Error: {repr(error)}\nTraceback:\n{exception_text}')
+        resp = {
+            'text': f'You hurt the bot :face_with_head_bandage:.. Be gentle when speaking with him.\n'
+                    f'Error: `{repr(error)}`'
+        }
+
+    return reply(resp)

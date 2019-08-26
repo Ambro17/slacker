@@ -1,0 +1,44 @@
+version: "3"
+services:
+  slacker:
+    build:
+      context: ./slacker
+      dockerfile: Dockerfile
+    image: slacker
+    restart: always
+    ports:
+      - "3000:3000"
+    depends_on:
+      - redis
+    env_file:
+      - .env
+    volumes:
+      - ./slacker:/slacker 
+
+  tasks:
+    build:
+      context: task_queue
+      dockerfile: Dockerfile
+    image: tasks
+    restart: always
+    depends_on:
+      - redis
+    env_file:
+      - task_queue/.env
+
+  redis:
+    image: redis:alpine
+    restart: always
+    ports:
+      - "6379:6379"
+
+  db:
+    image: postgres:11-alpine
+    restart: always
+    ports:
+      - "54320:5432"
+    volumes:
+      - pg_database:/var/lib/postgresql/data
+
+volumes:
+  pg_database:

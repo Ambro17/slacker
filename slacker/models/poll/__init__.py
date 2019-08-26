@@ -86,13 +86,11 @@ class Poll(db.Model, CRUDMixin):
         poll = Poll.create(question=question, options=poll_options)
         return poll, None
 
-
     def to_dict(self):
         return {
             'question': self.question,
             'options': self.ordered_options()
         }
-
 
     def ordered_options(self):
         """Return poll options sorted by number"""
@@ -102,7 +100,6 @@ class Poll(db.Model, CRUDMixin):
                 for op in self.options
             ], key=itemgetter(0)
         )
-
 
     @classmethod
     def format_option(cls, option):
@@ -117,10 +114,8 @@ class Poll(db.Model, CRUDMixin):
             msg += f' `{len(option.votes)}`'
         return msg
 
-
     def options_to_string(self, sep='\n'):
         return f'{sep}'.join(self.format_option(op) for op in self.options)
-
 
     def __str__(self):
         return f'*{self.question}?*\n{self.options_to_string()}'
@@ -133,7 +128,6 @@ class Option(db.Model):
     text = db.Column(db.String, nullable=False)
 
     votes = db.relationship("Vote", backref='option')
-
 
 
 class Vote(db.Model):

@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 def get_feriados(year):
     try:
         url = FERIADOS_URL.format(year=year)
-        r = requests.get(url, params={'incluir': 'opcional'})
+        r = requests.get(url)
         logger.info(f'Retrieved feriados from {r.url}')
     except Exception:
         logger.error("Error requestion feriados", exc_info=True)

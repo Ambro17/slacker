@@ -1,0 +1,7 @@
+--index-url=https://artifactory.corp.onapsis.com/artifactory/api/pypi/osp-python/simple
+# Avoid installing needed dependency. (Alredy cloned and install to workaround ssh permissions)
+# git+ssh://git@stash.corp.onapsis.com:7999/~nambrosini/awsadm.git
+celery
+redis
+slackclient==2.1.0
+python-dotenv==0.10.2

@@ -124,7 +124,6 @@ def reply_raw(response, status=200, response_type=JSON_TYPE):
     return response, status, response_type
 
 
-
 def ephemeral_reply(text):
     resp = {
         'text': text,
@@ -132,14 +131,14 @@ def ephemeral_reply(text):
     }
     return reply(resp)
 
-
+BOT_ICON = "https://i.imgur.com/rOpT9uS.png"
 def command_response(text, **kwargs):
     response = {
         'text': text,
         "attachments": [
             {
                 "footer": "Cuervot",
-                "footer_icon": "https://i.imgur.com/rOpT9uS.png",
+                "footer_icon": BOT_ICON,
                 "ts": time.time()
             }
         ]

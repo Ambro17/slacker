@@ -1,0 +1,15 @@
+--index-url=https://artifactory.corp.onapsis.com/artifactory/api/pypi/osp-python/simple
+slackclient==2.1.0
+Flask==1.1.1
+Flask-SQLAlchemy==2.4.0
+cryptography==2.7
+gunicorn==19.9.0
+psycopg2-binary==2.8.3
+celery==4.3.0
+redis==3.2.1
+pytz==2019.1
+requests==2.20.1
+beautifulsoup4==4.7.1
+lxml==4.3.2
+loguru==0.2.5
+python-dotenv==0.10.2
