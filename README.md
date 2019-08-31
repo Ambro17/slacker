@@ -79,9 +79,6 @@ To run tests run pytest on the project dir.
 `$ pytest`
 
 # Future features
-
-`/rooms` - List all available rooms (To ease reservations for meetings!)
-
 `/suscribe <subte_line>`
 
 `/futbol <Dia>+` - Anotarse para el partido
