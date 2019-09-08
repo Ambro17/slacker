@@ -1,11 +1,21 @@
 import datetime as dt
+from functools import partial
+
 from attr import dataclass
 from dateparser import parse
 from typing import List, Tuple, Dict
 import pytz
+from docopt import docopt
 from googleapiclient.discovery import build
+from loguru import logger
+import unidecode
 
 bsas = pytz.timezone('America/Argentina/Buenos_Aires')
+parse_date = partial(parse, settings={'TIMEZONE': 'America/Buenos_Aires', 'RETURN_AS_TIMEZONE_AWARE': True})
+
+
+class RoomDoesNotExist(Exception):
+    pass
 
 
 @dataclass
@@ -21,7 +31,7 @@ class Room:
     def __str__(self):
         # Boole - Fl. PB - Size: small - Meet? Yes
         floor = f'Fl. {self.floor}' if self.floor else 'PB'
-        return f"{self.name.capitalize()} - {floor} - Size: {self.size} - Meet? {'Yes' if self.has_meet else 'No'}"
+        return f"{self.name.title()} - {floor} - Size: {self.size} - Meet? {'Yes' if self.has_meet else 'No'}"
 
 
 class RoomFinder:
@@ -68,6 +78,17 @@ class RoomFinder:
         TURING: Room('turing', 2, 'big', 20, has_meet=True),
     }
     ROOM_IDS_BY_NAME = {room.name: cal_id for cal_id, room in ROOMS.items()}
+
+    @classmethod
+    def get_room_by_name(cls, room_name):
+        room_id = cls.ROOM_IDS_BY_NAME[cls.normalize(room_name)]
+        return cls.ROOMS[room_id]
+
+    @classmethod
+    def normalize(cls, name):
+        """Replace spaces by underscores and lowercase it"""
+        ascii_name = unidecode.unidecode(name)
+        return ascii_name.lower()
 
     def __init__(self, creds):
         self.api = build('calendar', 'v3', credentials=creds)
@@ -123,7 +144,9 @@ class RoomFinder:
                              freebusy_resp: dict,
                              start=None,
                              end=None,
-                             tz=bsas) -> Dict[str, Dict]:
+                             tz=bsas,
+                             skip_occupied_rooms=True,
+                             floor_filter=None) -> Dict[str, Dict]:
         """
         Input
         {
@@ -157,6 +180,10 @@ class RoomFinder:
         for room_id, calendar in freebusy_resp.items():
             room = cls.ROOMS[room_id]
             free_slots, is_free_now = cls._get_free_slots(calendar['busy'], start, end)
+            if skip_occupied_rooms and not is_free_now:
+                continue
+            if floor_filter and room.floor != int(floor_filter):
+                continue
             room_slots[room.name] = {'slots': free_slots, 'is_free_now': is_free_now, 'details': str(room)}
 
         return room_slots
@@ -169,3 +196,34 @@ class RoomFinder:
             f"{[f'{s:%H:%M}-{e:%H:%M}' for s, e in details['slots']]}\n"
             for room, details in free_rooms.items()
         )
+
+
+def get_free_rooms(credentials, args):
+    opt = docopt(__doc__, args)
+
+    now = bsas.fromutc(dt.datetime.utcnow()).replace(microsecond=0)
+    start = parse_date(opt['--start']).replace(microsecond=0) if opt['--start'] else now
+    end = parse_date(opt['--end']).replace(microsecond=0) if opt['--end'] else start.replace(hour=23, minute=59)
+
+    logger.debug(f"Looking for free slots between '{start.isoformat()}' and '{end.isoformat()}'.")
+
+    finder = RoomFinder(credentials)
+    request_calendars = partial(finder.request_calendars, start=start.isoformat(), end=end.isoformat())
+
+    if opt['--room']:
+        calendar = RoomFinder.ROOM_IDS_BY_NAME.get(opt['--room'].lower())
+        if not calendar:
+            raise RoomDoesNotExist(f"Room '{opt['--room']}' doesn't exist. "
+                                   f"Options are:\n{list(RoomFinder.ROOM_IDS_BY_NAME.keys())}')")
+        calendars = [calendar]
+    else:
+        calendars = RoomFinder.CALENDARS
+
+    response = request_calendars(calendars=[{'id': calendar} for calendar in calendars])
+
+    skip_occupied_rooms = True if not opt['--all'] else False
+    free_rooms = RoomFinder.get_rooms_free_slots(response['calendars'], start, end,
+                                                 skip_occupied_rooms=skip_occupied_rooms,
+                                                 floor_filter=opt['--floor'])
+    pretty_rooms = RoomFinder.format_room_availability(free_rooms)
+    return pretty_rooms

@@ -1,7 +1,9 @@
 from flask import Flask
 from dotenv import load_dotenv
 
-from .blueprints import commands, retroapp, interactivity, stickers
+load_dotenv()
+
+from .blueprints import commands, retroapp, interactivity, stickers, rooms
 from .database import db
 from .manage import test, clean, init_db_command
 from .utils import reply, is_user_message, add_user
@@ -9,7 +11,6 @@ from .utils import reply, is_user_message, add_user
 
 def create_app(config_object='slacker.settings'):
     """Create and configure an instance of the Flask application."""
-    load_dotenv()
     app = Flask(__name__)
     app.config.from_object(config_object)
 
@@ -32,6 +33,7 @@ def register_blueprints(app):
     app.register_blueprint(retroapp.bp)
     app.register_blueprint(interactivity.bp)
     app.register_blueprint(stickers.bp)
+    app.register_blueprint(rooms.bp)
 
 
 def register_commands(app):

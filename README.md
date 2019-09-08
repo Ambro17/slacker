@@ -79,6 +79,7 @@ To run tests run pytest on the project dir.
 `$ pytest`
 
 # Future features
+`/room_map`
 `/suscribe <subte_line>`
 
 `/futbol <Dia>+` - Anotarse para el partido
