@@ -2,20 +2,12 @@ from flask import request, make_response
 from loguru import logger
 from google.auth.transport.requests import Request
 
-from slacker.api.rooms import calendar
+from slacker.api.rooms.login import calendar
 from slacker.api.rooms.api import get_free_rooms
 from slacker.slack_cli import OviBot
 from slacker.utils import BaseBlueprint, reply, reply_raw
 
 bp = BaseBlueprint('rooms', __name__, url_prefix='/rooms')
-
-
-@bp.route('/', methods=('GET', 'POST'))
-def index():
-    # Check if token is active
-    return reply({
-        'message': 'Is token active?'
-    })
 
 
 @bp.route('/request_user_consent', methods=('GET', 'POST'))
@@ -39,7 +31,7 @@ def get_authorization_url():
 
 @bp.route('/fetch_token', methods=('GET', 'POST'))
 def set_token():
-    """Final step of oauth2 flow. Set token for api requests"""
+    """Final step of oauth2 flow. Set token for further api requests"""
     logger.debug('cal id (token) {!r}', id(calendar))
     form = request.form
     auth_code = form.get('text')
@@ -62,14 +54,15 @@ def find():
         credentials = calendar.get_credentials()
     except ValueError:
         logger.exception('No token found on session. Have you already authorized the app?')
-        return reply('First authorize the app')
+        return reply('You must first authorize the app')
 
     if not credentials.valid:
         if credentials.expired and credentials.refresh_token:
             # Update credentials if they are expired using the refresh token
             credentials.refresh(Request())
         else:
-            logger.debug(f"Valid credentials but refresh token failed. Expired={credentials.expired}")
+            attrs = [getattr(credentials, attr, None) for attr in dir(credentials)]
+            logger.debug(f"Valid credentials but refresh token failed. creds={attrs}")
             return reply('No Credentials for requests. Have you `/authorize`d and `/set_token`?')
 
     args = request.form.get('text', '').split()

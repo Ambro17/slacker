@@ -95,14 +95,10 @@ class RoomFinder:
 
     @classmethod
     def get_room_by_name(cls, room_name):
-        room_id = cls.ROOM_IDS_BY_NAME[cls.normalize(room_name)]
+        """Accepts names with accents and umlauts and converts them to ascii"""
+        ascii_name = unidecode.unidecode(room_name).lower()
+        room_id = cls.ROOM_IDS_BY_NAME[ascii_name]
         return cls.ROOMS[room_id]
-
-    @classmethod
-    def normalize(cls, name):
-        """Replace spaces by underscores and lowercase it"""
-        ascii_name = unidecode.unidecode(name)
-        return ascii_name.lower()
 
     def __init__(self, creds):
         self.api = build('calendar', 'v3', credentials=creds)
