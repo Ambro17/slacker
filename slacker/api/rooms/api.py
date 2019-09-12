@@ -1,3 +1,17 @@
+"""
+Get available room for meetings.
+
+Usage:
+    getaroom.py [--start=START] [--end=END] [--room=ROOM] [--floor=FLOOR] [--all]
+    getaroom.py listrooms
+
+Options:
+    -h, --help                  Show this screen and exit.
+    -s START, --start START     Start date to look for available rooms
+    -e END, --end     END       End date to mark a time slot as available
+    -r ROOM, --room   ROOM      Room where to find free time slots
+    -f ROOM, --floor  FLOOR     Room where to find free time slots
+"""
 import datetime as dt
 from functools import partial
 
@@ -184,7 +198,10 @@ class RoomFinder:
                 continue
             if floor_filter and room.floor != int(floor_filter):
                 continue
-            room_slots[room.name] = {'slots': free_slots, 'is_free_now': is_free_now, 'details': str(room)}
+            room_slots[room.name] = {'room': room,
+                                     'slots': free_slots,
+                                     'is_free_now': is_free_now,
+                                     'details': str(room)}
 
         return room_slots
 
@@ -199,6 +216,7 @@ class RoomFinder:
 
 
 def get_free_rooms(credentials, args):
+    """Get free rooms filtered by optional user args"""
     opt = docopt(__doc__, args)
 
     now = bsas.fromutc(dt.datetime.utcnow()).replace(microsecond=0)

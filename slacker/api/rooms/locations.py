@@ -57,7 +57,7 @@ rooms = {
 
 def get_room_location(room):
     room_map = rooms[room.floor]
-    # Fill the map with space to render the ascii map
+    # Fill the map with empty spaces to render the ascii map
     default_format_args = {normalize(name): ' ' for name in RoomFinder.ROOM_IDS_BY_NAME}
     default_format_args.update({normalize(room.name): 'ӿ'})  # Mark room location
     return room_map.format(**default_format_args)

@@ -1,17 +1,3 @@
-"""
-Get available room for meetings.
-
-Usage:
-    getaroom.py [--start=START] [--end=END] [--room=ROOM] [--floor=FLOOR] [--all]
-    getaroom.py listrooms
-
-Options:
-    -h, --help                  Show this screen and exit.
-    -s START, --start START     Start date to look for available rooms
-    -e END, --end     END       End date to mark a time slot as available
-    -r ROOM, --room   ROOM      Room where to find free time slots
-    -f ROOM, --floor  FLOOR     Room where to find free time slots
-"""
 from flask import request, make_response
 from loguru import logger
 from google.auth.transport.requests import Request
@@ -19,7 +5,7 @@ from google.auth.transport.requests import Request
 from slacker.api.rooms import calendar
 from slacker.api.rooms.api import get_free_rooms
 from slacker.slack_cli import OviBot
-from slacker.utils import BaseBlueprint, reply
+from slacker.utils import BaseBlueprint, reply, reply_raw
 
 bp = BaseBlueprint('rooms', __name__, url_prefix='/rooms')
 
@@ -34,6 +20,8 @@ def index():
 
 @bp.route('/request_user_consent', methods=('GET', 'POST'))
 def get_authorization_url():
+    """First step of oauth2 flow"""
+    logger.debug('cal id (auth) {!r}', id(calendar))
     channel = request.form.get('channel_id')
     user = request.form.get('user_id')
     url = calendar.get_authorization_url()
@@ -51,12 +39,15 @@ def get_authorization_url():
 
 @bp.route('/fetch_token', methods=('GET', 'POST'))
 def set_token():
+    """Final step of oauth2 flow. Set token for api requests"""
+    logger.debug('cal id (token) {!r}', id(calendar))
     form = request.form
     auth_code = form.get('text')
     if not auth_code:
         return reply('Usage: /authorize <my_auth_code>')
 
-    calendar.fetch_token(code=auth_code)
+    calendar.get_token(code=auth_code)
+    logger.debug('fetched token: {}', calendar.credentials.token)
 
     OviBot.chat_postEphemeral(
         channel=form['channel_id'], user=form['user_id'], text=':check: Success!'
@@ -66,18 +57,25 @@ def set_token():
 
 @bp.route('/find', methods=('GET', 'POST'))
 def find():
-    credentials = calendar.credentials
-    if not credentials.valid and credentials.expired and credentials.refresh_token:
-        # Update credentials if they are expired using the refresh token
-        credentials.refresh(Request())
-    else:
-        logger.debug(f"Credentials not set. Valid={credentials.valid}, Expired={credentials.expired}")
-        return reply('No Credentials for requests. Have you `/authorize`d and `/set_token`?')
+    logger.debug('cal id {!r}', id(calendar))
+    try:
+        credentials = calendar.get_credentials()
+    except ValueError:
+        logger.exception('No token found on session. Have you already authorized the app?')
+        return reply('First authorize the app')
+
+    if not credentials.valid:
+        if credentials.expired and credentials.refresh_token:
+            # Update credentials if they are expired using the refresh token
+            credentials.refresh(Request())
+        else:
+            logger.debug(f"Valid credentials but refresh token failed. Expired={credentials.expired}")
+            return reply('No Credentials for requests. Have you `/authorize`d and `/set_token`?')
 
     args = request.form.get('text', '').split()
     free_rooms = get_free_rooms(credentials, args)
 
-    return reply(free_rooms)
+    return reply_raw(free_rooms)
 
 
 @bp.route('/map', methods=('GET', 'POST'))
