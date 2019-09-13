@@ -48,7 +48,6 @@ def set_token():
 
 @bp.route('/find_free_rooms', methods=('GET', 'POST'))
 def find():
-    logger.debug('cal id {!r}', id(calendar))
     try:
         credentials = calendar.get_credentials()
     except ValueError:
@@ -65,10 +64,24 @@ def find():
             return reply('No Credentials for requests. Have you `/authorize`d and `/set_token`?')
 
     args = request.form.get('text', '').split()
-    free_rooms = get_free_rooms(credentials, args)
-    resp = free_rooms + '\n' + "To know the location of a room run `/whereis <room_name>`"
+    logger.debug('Find free rooms args: {!r}', args)
+    try:
+        free_rooms = get_free_rooms(credentials, args)
+    except ValueError as e:
+        message = monospace(str(e))
+    except Exception as e:
+        message = f'Unexpected error. {str(e)}'
+    else:
+        if not free_rooms:
+            message = 'No available rooms right now.. Try `/find_free_rooms --all`'
+        else:
+            message = (
+                '_*Available rooms:*_\n'
+                f'{free_rooms}\n'
+                '_To know the location of a room run_ `/whereis <room_name>`'
+            )
 
-    return reply_raw(resp)
+    return reply_text(message)
 
 
 @bp.route('/office_map', methods=('GET', 'POST'))

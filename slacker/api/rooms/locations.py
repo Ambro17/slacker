@@ -15,7 +15,7 @@ office_map = """
          ║    4    ║
          ╚═════════╝
 
-1. Curie
+1. Marie Curie
 2. Godel
 3. Diffie
 4. Shannon
@@ -117,13 +117,14 @@ rooms = {
     1: first_floor,
     2: second_floor,
 }
+MARK = '■'
 
 
 def get_room_location(room: Room):
     room_map = rooms[room.floor]
     # Fill the map with empty spaces to render the ascii map correctly
     default_format_args = {normalize(name): ' ' for name in RoomFinder.ROOM_IDS_BY_NAME}
-    default_format_args.update({normalize(room.name): 'ӿ'})  # Mark room location
+    default_format_args.update({normalize(room.name): MARK})  # Mark room location
     return room_map.format(**default_format_args)
 
 

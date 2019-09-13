@@ -19,7 +19,7 @@ from attr import dataclass
 from dateparser import parse
 from typing import List, Tuple, Dict
 import pytz
-from docopt import docopt
+from docopt import docopt, DocoptExit
 from googleapiclient.discovery import build
 from loguru import logger
 import unidecode
@@ -215,14 +215,17 @@ class RoomFinder:
         return '\n'.join(
             f"{details['details']}\n"
             f"Free: {details['is_free_now'] and 'Yes' or 'No'}\n"
-            f"{[f'{slot.start:%H:%M}-{slot.end:%H:%M}' for slot in details['slots']]}\n"
+            f"{[f'{slot.start:%H:%M}-{slot.end:%H:%M}' for slot in details['slots']]}"
             for room, details in free_rooms.items()
         )
 
 
 def get_free_rooms(credentials, args):
     """Get free rooms filtered by optional user args parsed from module __doc__"""
-    opt = docopt(__doc__, args)
+    try:
+        opt = docopt(__doc__, args)
+    except DocoptExit as e:
+        raise ValueError(f'Invalid usage. {str(e)}')
     finder = RoomFinder(credentials)
 
     # Get min and max date of request for free rooms
@@ -254,5 +257,17 @@ def get_free_rooms(credentials, args):
                                                  skip_occupied_rooms=skip_occupied_rooms,
                                                  floor_filter=opt['--floor'])
     # Prettify output
-    pretty_rooms = RoomFinder.format_room_availability(free_rooms)
+    pretty_rooms = format_room_availability(free_rooms)
     return pretty_rooms
+
+
+def format_room_availability(free_rooms: Dict[str, dict]) -> str:
+    def format_room(room, all=False):
+        floor = f'Fl. {room.floor}' if room.floor else 'PB'
+        return f"*{room.name.title()}*\n{floor} - Size: {room.size} {'- :meet:' if room.has_meet else ''}"
+
+    return '\n'.join(
+        f"{format_room(details['room'])}\n"
+        f"{[f'{slot.start:%H:%M}-{slot.end:%H:%M}' for slot in details['slots']]}"
+        for room, details in free_rooms.items()
+    )
