@@ -2,10 +2,11 @@ from flask import request, make_response
 from loguru import logger
 from google.auth.transport.requests import Request
 
+from slacker.api.rooms.locations import office_map, get_room_location
 from slacker.api.rooms.login import calendar
-from slacker.api.rooms.api import get_free_rooms
+from slacker.api.rooms.api import get_free_rooms, RoomFinder
 from slacker.slack_cli import OviBot
-from slacker.utils import BaseBlueprint, reply, reply_raw
+from slacker.utils import BaseBlueprint, reply, reply_raw, monospace, reply_text
 
 bp = BaseBlueprint('rooms', __name__, url_prefix='/rooms')
 
@@ -13,7 +14,6 @@ bp = BaseBlueprint('rooms', __name__, url_prefix='/rooms')
 @bp.route('/request_user_consent', methods=('GET', 'POST'))
 def get_authorization_url():
     """First step of oauth2 flow"""
-    logger.debug('cal id (auth) {!r}', id(calendar))
     channel = request.form.get('channel_id')
     user = request.form.get('user_id')
     url = calendar.get_authorization_url()
@@ -32,7 +32,6 @@ def get_authorization_url():
 @bp.route('/fetch_token', methods=('GET', 'POST'))
 def set_token():
     """Final step of oauth2 flow. Set token for further api requests"""
-    logger.debug('cal id (token) {!r}', id(calendar))
     form = request.form
     auth_code = form.get('text')
     if not auth_code:
@@ -47,7 +46,7 @@ def set_token():
     return make_response('', 200)
 
 
-@bp.route('/find', methods=('GET', 'POST'))
+@bp.route('/find_free_rooms', methods=('GET', 'POST'))
 def find():
     logger.debug('cal id {!r}', id(calendar))
     try:
@@ -67,17 +66,28 @@ def find():
 
     args = request.form.get('text', '').split()
     free_rooms = get_free_rooms(credentials, args)
+    resp = free_rooms + '\n' + "To know the location of a room run `/whereis <room_name>`"
 
-    return reply_raw(free_rooms)
+    return reply_raw(resp)
 
 
-@bp.route('/map', methods=('GET', 'POST'))
+@bp.route('/office_map', methods=('GET', 'POST'))
 def room_map():
     """Show room map"""
-    pass
+    return reply_raw(monospace(office_map))
 
 
-@bp.route('/whereis', methods=('GET', 'POST'))
+@bp.route('/room_location', methods=('GET', 'POST'))
 def locate_room():
     """Show where a room is on the map"""
-    pass
+    room_name = request.form.get('text')
+    if not room_name:
+        return reply_text('Specify a room. To show office map run `/office_map`')
+
+    try:
+        room = RoomFinder.get_room_by_name(room_name)
+    except KeyError:
+        return reply_text('Specified room does not exist. Check for typos')
+
+    location_map = get_room_location(room)
+    return reply_text(monospace(location_map))

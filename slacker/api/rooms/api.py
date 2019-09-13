@@ -48,6 +48,12 @@ class Room:
         return f"{self.name.title()} - {floor} - Size: {self.size} - Meet? {'Yes' if self.has_meet else 'No'}"
 
 
+@dataclass
+class FreeSlot:
+    start: dt.datetime
+    end: dt.datetime
+
+
 class RoomFinder:
 
     SCOPES = ['https://www.googleapis.com/auth/calendar']
@@ -106,12 +112,12 @@ class RoomFinder:
     def calendar_list(self):
         return self.api.calendarList().list().execute()
 
-    def request_calendars(self, start: str, end: str, tz='America/Buenos_Aires', calendars: List[Dict] = None):
+    def request_calendars(self, start: str, end: str, calendars: List[Dict], tz='America/Buenos_Aires'):
         body = {
             "timeMin": start,
             "timeMax": end,
             "timeZone": tz,
-            "items": calendars or [{'id': calendar} for calendar in RoomFinder.CALENDARS]
+            "items": calendars
         }
 
         return self.api.freebusy().query(body=body).execute()
@@ -120,7 +126,7 @@ class RoomFinder:
     def _get_free_slots(cls,
                         busy_slots: List[dict],
                         start_date: dt.datetime,
-                        end_date: dt.datetime) -> Tuple[List[Tuple[dt.datetime, dt.datetime]], bool]:
+                        end_date: dt.datetime) -> Tuple[List[FreeSlot], bool]:
         """Get free time slots of a calendar by iterating with a cursor over busy time slots."""
         free_slots = []
         cursor = start_date
@@ -131,21 +137,21 @@ class RoomFinder:
                 continue
             if cursor < start:
                 # There is a free slot until next event starts
-                free_slots.append((cursor, start))
+                free_slots.append(FreeSlot(start, end))
                 cursor = end
             elif cursor >= start:
-                if cursor >= end:
-                    # Event has already happened
-                    continue
-                else:
+                if cursor < end:
                     # This time slot is occupied, advance the cursor
                     cursor = end
+                elif cursor >= end:
+                    # Event has already happened
+                    continue
 
         if cursor < end_date:
             # There's time left until the end of the day
-            free_slots.append((cursor, end_date))
+            free_slots.append(FreeSlot(cursor, end_date))
 
-        is_free_now = bool(free_slots) and free_slots[0][0] == start_date
+        is_free_now = bool(free_slots) and free_slots[0].start == start_date
 
         return free_slots, is_free_now
 
@@ -166,7 +172,10 @@ class RoomFinder:
                 "end": "2019-08-19T12:00:00-03:00",
                 "start": "2019-08-19T11:02:10-03:00"
               },
-                ...
+              {
+                "end":   "2019-08-19T15:00:00-03:00",
+                "start": "2019-08-19T14:00:10-03:00"
+              },
             ]
           },
           "room_calendar2": {
@@ -202,42 +211,48 @@ class RoomFinder:
         return room_slots
 
     @classmethod
-    def format_room_availability(cls, free_rooms):
+    def format_room_availability(cls, free_rooms: Dict[str, dict]) -> str:
         return '\n'.join(
             f"{details['details']}\n"
             f"Free: {details['is_free_now'] and 'Yes' or 'No'}\n"
-            f"{[f'{s:%H:%M}-{e:%H:%M}' for s, e in details['slots']]}\n"
+            f"{[f'{slot.start:%H:%M}-{slot.end:%H:%M}' for slot in details['slots']]}\n"
             for room, details in free_rooms.items()
         )
 
 
 def get_free_rooms(credentials, args):
-    """Get free rooms filtered by optional user args"""
+    """Get free rooms filtered by optional user args parsed from module __doc__"""
     opt = docopt(__doc__, args)
+    finder = RoomFinder(credentials)
 
+    # Get min and max date of request for free rooms
     now = bsas.fromutc(dt.datetime.utcnow()).replace(microsecond=0)
     start = parse_date(opt['--start']).replace(microsecond=0) if opt['--start'] else now
     end = parse_date(opt['--end']).replace(microsecond=0) if opt['--end'] else start.replace(hour=23, minute=59)
 
     logger.debug(f"Looking for free slots between '{start.isoformat()}' and '{end.isoformat()}'.")
 
-    finder = RoomFinder(credentials)
+    # Prepare request for calendars with min and max date
     request_calendars = partial(finder.request_calendars, start=start.isoformat(), end=end.isoformat())
 
+    # Get room calendars to fetch
     if opt['--room']:
         calendar = RoomFinder.ROOM_IDS_BY_NAME.get(opt['--room'].lower())
         if not calendar:
             raise RoomDoesNotExist(f"Room '{opt['--room']}' doesn't exist. "
-                                   f"Options are:\n{list(RoomFinder.ROOM_IDS_BY_NAME.keys())}')")
+                                   f"Options are:\n{list(RoomFinder.ROOM_IDS_BY_NAME)}')")
         calendars = [calendar]
     else:
         calendars = RoomFinder.CALENDARS
 
+    # Call freebusy api for the requested calendars
     response = request_calendars(calendars=[{'id': calendar} for calendar in calendars])
 
+    # Get free rooms
     skip_occupied_rooms = True if not opt['--all'] else False
     free_rooms = RoomFinder.get_rooms_free_slots(response['calendars'], start, end,
                                                  skip_occupied_rooms=skip_occupied_rooms,
                                                  floor_filter=opt['--floor'])
+    # Prettify output
     pretty_rooms = RoomFinder.format_room_availability(free_rooms)
     return pretty_rooms

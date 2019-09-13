@@ -1,18 +1,18 @@
-from slacker.api.rooms.api import RoomFinder
+from slacker.api.rooms.api import RoomFinder, Room
 
 office_map = """
 ╔══════════════════╗          ╔═══════════════╦═════╗
-║ Ground Floor     ║          ║               ║  {curie}  ║
+║ Ground Floor     ║          ║               ║  1  ║
 ║                  ║          ║               ╠═════╣
-║                  ║          ║               ║  {godel}  ║
+║                  ║          ║               ║  2  ║
 ║                  ║          ║               ╠═════╣
-║                  ║          ║               ║  {diffie}  ║
+║                  ║          ║               ║  3  ║
 ║                  ║          ║               ╚═════╣
 ║                  ║          ║                     ║
 ║                  ╚══════════╝                     ║
 ║                                                   ║
 ╚════════╦═════════╦════════════════════════════════╝
-         ║    {shannon}    ║
+         ║    4    ║
          ╚═════════╝
 
 1. Curie
@@ -48,7 +48,7 @@ office_map = """
 ║                  ║         ║          12         ║
 ║                  ║         ║                     ║
 ║                  ║         ║                     ║
-║                  ║         ╠═════════════════════╣qq
+║                  ║         ╠═════════════════════╣
 ║                  ║         ║                     ║
 ║                  ╚═════════╝                     ║
 ║                                                  ║
@@ -58,9 +58,8 @@ office_map = """
 
 12. Turing
 13. Angela Ruiz
-
-
 """
+
 
 ground_floor = """
 ╔══════════════════╗          ╔═══════════════╦═════╗
@@ -77,6 +76,7 @@ ground_floor = """
          ║    {shannon}    ║
          ╚═════════╝
 """
+
 
 first_floor = """
 ╔══════════════════╗          ╔═══════════════╦═════╗  ╔════╦═══════╦════╗
@@ -111,6 +111,7 @@ second_floor = """
          ╚═════════╝
 """
 
+
 rooms = {
     0: ground_floor,
     1: first_floor,
@@ -118,7 +119,7 @@ rooms = {
 }
 
 
-def get_room_location(room):
+def get_room_location(room: Room):
     room_map = rooms[room.floor]
     # Fill the map with empty spaces to render the ascii map correctly
     default_format_args = {normalize(name): ' ' for name in RoomFinder.ROOM_IDS_BY_NAME}
