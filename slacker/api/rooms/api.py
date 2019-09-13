@@ -79,22 +79,22 @@ class RoomFinder:
 
     ROOMS = {
         # Ground floor
-        SHANNON: Room('shannon', 0,  'medium', 6, has_meet=True),
+        SHANNON: Room('shannon', 0,  'medium', 8, has_meet=True),
         DIFFIE: Room('diffie', 0, 'small', 5, has_meet=True),
         GODEL: Room('godel', 0, 'small', 5, has_meet=True),
         MARIE_CURIE: Room('marie curie', 0, 'small', 4, has_meet=True),
 
         # First floor
+        HUFFMAN: Room('huffman', 1, 'medium', 8, has_meet=True),
         KNUTH: Room('knuth', 1, 'small', 4),
-        BOOLE: Room('boole', 1, 'small', 4),
-        HAMMING: Room('hamming', 1, 'small', 4),
-        RITCHIE: Room('ritchie', 1, 'small', 4),
         ANITA_BORG: Room('anita borg', 1, 'small', 5, has_meet=True),
         LOVELACE: Room('lovelace', 1, 'small', 5, has_meet=True),
-        HUFFMAN: Room('huffman', 1, 'medium', 6, has_meet=True),
+        BOOLE: Room('boole', 1, 'small', 4),
+        RITCHIE: Room('ritchie', 1, 'small', 4),
+        HAMMING: Room('hamming', 1, 'small', 4),
 
         # Second floor
-        ANGELA_RUIZ: Room('angela ruiz', 2, 'big', 8, has_meet=True),
+        ANGELA_RUIZ: Room('angela ruiz', 2, 'medium', 8, has_meet=True),
         TURING: Room('turing', 2, 'big', 20, has_meet=True),
     }
     ROOM_IDS_BY_NAME = {room.name: cal_id for cal_id, room in ROOMS.items()}
@@ -262,9 +262,9 @@ def get_free_rooms(credentials, args):
 
 
 def format_room_availability(free_rooms: Dict[str, dict]) -> str:
-    def format_room(room, all=False):
-        floor = f'Fl. {room.floor}' if room.floor else 'PB'
-        return f"*{room.name.title()}*\n{floor} - Size: {room.size} {'- :meet:' if room.has_meet else ''}"
+    def format_room(room):
+        floor = {0: 'PB', 1: '1st Fl.', 2: '2nd Fl.'}
+        return f"*{room.name.title()}*\n{floor[room.floor]} | {room.capacity}:user: {'| :meet:' if room.has_meet else ''}"
 
     return '\n'.join(
         f"{format_room(details['room'])}\n"
