@@ -1,4 +1,7 @@
-celery
-redis
+celery==4.3.0
+redis==3.3.8
 slackclient==2.1.0
 python-dotenv==0.10.2
+docopt==0.6.2
+requests==2.22.0
+tabulate==0.8.3

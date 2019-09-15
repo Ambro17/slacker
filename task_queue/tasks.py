@@ -14,8 +14,8 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
-CELERY_BROKER_URL = os.environ['CELERY_BACKEND']
-CELERY_RESULT_BACKEND = os.environ['CELERY_BROKER']
+CELERY_BROKER_URL = os.environ['REDIS_URL']
+CELERY_RESULT_BACKEND = os.environ['REDIS_URL']
 ERRORS_CHANNEL = os.environ['ERRORS_CHANNEL']
 BOT_FATHER = os.environ['BOT_FATHER']
 BOT_TOKEN = os.environ['BOT_TOKEN']

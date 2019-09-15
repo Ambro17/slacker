@@ -14,4 +14,4 @@ USER slack_user
 
 EXPOSE 3000
 
-CMD gunicorn -w 4 "slacker.app:create_app()" -b 0.0.0.0:$PORT
+CMD gunicorn -w 4 "slacker.app:create_app()" -b 0.0.0.0:$PORT --access-logfile -
