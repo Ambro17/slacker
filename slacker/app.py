@@ -1,12 +1,14 @@
 from flask import Flask
 from dotenv import load_dotenv
+from loguru import logger
 
 load_dotenv()
 
-from .blueprints import commands, retroapp, interactivity, stickers, rooms
+from slacker.security import Crypto
+from .blueprints import commands as commands_bp, retroapp, interactivity, stickers, ovi_management, rooms
 from .database import db
-from .manage import test, clean, init_db_command
-from .utils import reply, is_user_message, add_user
+from .manage import clean, init_db
+from .utils import reply
 
 
 def create_app(config_object='slacker.settings'):
@@ -23,28 +25,31 @@ def create_app(config_object='slacker.settings'):
 
 
 def register_extensions(app):
-    """Register db, logging and task extensions."""
+    """Register db and bcrypt extensions."""
     db.init_app(app)
+    Crypto.configure(app.config['HASH_SECRET'])
+    logger.debug(f"Database: {app.config['SQLALCHEMY_DATABASE_URI']}")
 
 
 def register_blueprints(app):
     """Register Flask blueprints."""
-    app.register_blueprint(commands.bp)
+    app.register_blueprint(commands_bp.bp)
     app.register_blueprint(retroapp.bp)
     app.register_blueprint(interactivity.bp)
+    app.register_blueprint(ovi_management.bp)
     app.register_blueprint(stickers.bp)
     app.register_blueprint(rooms.bp)
 
 
 def register_commands(app):
     """Register Click commands."""
-    app.cli.add_command(test, 'test')
     app.cli.add_command(clean, 'clean')
-    app.cli.add_command(init_db_command, 'init-db')
+    app.cli.add_command(init_db, 'init-db')
 
 
 def register_error_handlers(app):
     """Register error handlers to respond nicely"""
+    # Validate that slack requests come from slack.
     @app.errorhandler(400)
     def not_found(error):
         return reply({'text': 'Bad request', 'error': repr(error)})

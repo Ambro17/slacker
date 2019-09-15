@@ -8,38 +8,53 @@ $ cd slacker
 $ vim .env.sample # Edit with your credentials rename to .env
 $ docker-compose up
 ```
-Or if you want to do it manually:
+Or if you want to do it the old way:
+
 ```
-$ redis-server  # Start redis server
-$ gunicorn -w 4 "slacker:create_app()" -b 0.0.0.0:3000 # Start bot server
-$ cd task-queue && celery worker -A tasks --loglevel=info # Start worker
+#   Install dependencies
+$ mkvirtualenv slacker -p /usr/bin/python3.6
+$ pip install -r slacker/requirements_dev.txt
+$ pip install -r task_queue/requirements_dev.txt
+
+#  Initialize db
+$ export FLASK_APP="slacker.app:create_app()"
+$ flask init-db
+
+#  Start bot
+$ gunicorn -w 4 "slacker.app:create_app()" -b 0.0.0.0:3000 # Start bot server
+$ redis-server start # Start redis server to dispatch tasks
+$ cd task_queue && celery worker -A tasks --loglevel=info # Start worker
 ```
 
 # Project Layout
 ```
+.
 ├── slacker
-│   ├── api
-│   │   ├── aws
-│   │   ├── feriados
-│   │   ├── hoypido
-│   │   ├── retro
-│   │   ├── stickers
-│   │   └── subte
-│   ├── blueprints
-|   |   ├── commands.py
-│   │   ├── interactivity.py
-│   │   ├── ovi_management.py
-│   │   ├── retroapp.py
-│   │   └── stickers.py
-│   └── models
-│       ├── aws
-│       ├── poll
-│       ├── retro
-│       └── stickers
+│   ├── api
+│   │   ├── aws
+│   │   ├── feriados
+│   │   ├── hoypido
+│   │   ├── poll
+│   │   ├── retro
+│   │   ├── stickers
+│   │   └── subte
+│   ├── blueprints
+│   │   ├── commands.py
+│   │   ├── interactivity.py
+│   │   ├── ovi_management.py
+│   │   ├── retroapp.py
+│   │   └── stickers.py
+│   └── models
+│       ├── aws
+│       ├── poll
+│       ├── retro
+│       └── stickers
+├── task_queue
 └── tests
     ├── api
     ├── blueprints
     └── models
+
 ```
 The project uses Flask as a framework and follows the application factory pattern to ease testing and development.
 Tests folder replicates the hierarchy on slacker dir.
@@ -47,13 +62,13 @@ Blueprints group bot functionality by topic. i.e Utilities for Retro Meetings ha
 Ideally, all features that are more complex than a simple command with an api request should have a module on blueprints dir
 
 ## Commands:
-`/feriados [n]`
+`/feriados`
 
 `/hoypido`
 
 `/subte`
 
-`/poll Who's the best football player ever? Messi, Lionel Mesi, Lio`
+`/poll Who's the best football player ever? Messi, Lionel Messi, Lio`
 
 ## Retro Blueprint
 `/add_team`

@@ -4,9 +4,11 @@ import pytest
 
 
 from _pytest.logging import caplog as _caplog
+from cryptography.fernet import Fernet
 from loguru import logger
-from slacker import create_app
+from slacker.app import create_app
 from slacker.database import db as _db
+from slacker.security import Crypto
 
 
 @pytest.fixture
@@ -37,7 +39,7 @@ def db(app):
 
 @pytest.fixture
 def client(app):
-    """A test client for the app."""
+    """A test client for the app to check its endpoints."""
     return app.test_client()
 
 
@@ -59,6 +61,12 @@ def runner(app):
 def f():
     from tests import factorium
     return factorium
+
+
+@pytest.fixture
+def crypto():
+    Crypto.configure(Fernet.generate_key())
+    return Crypto
 
 
 @pytest.fixture

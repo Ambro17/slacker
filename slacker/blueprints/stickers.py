@@ -23,15 +23,13 @@ def add_sticker():
     except ValueError:
         return command_response('Usage: `/add_sticker mymeme https://i.imgur.com/12345678.png`')
 
-    reachable = _check_reachable_url(url)
-    if not reachable:
-        return command_response('Specified image url is not reachable :electric_plug:. Maybe you mistyped?')
-
+    # Should check if url is reachable, but infosec doesn't allow to reach it
     msg = _add_sticker(user_id, name, url)
     return command_response(msg)
 
 
 def _check_reachable_url(url):
+    # Not used because infosec policies? don't allow it
     try:
         r = requests.get(url, timeout=2)
         return r.status_code == 200
