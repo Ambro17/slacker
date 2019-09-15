@@ -4,9 +4,7 @@ from typing import List
 
 from dotenv import load_dotenv
 import celery as _celery
-
-from awsadm.ovicli import OviCli
-
+from awsadm.ovicli import AWSCli as OviCli
 
 from slack import WebClient
 
@@ -14,8 +12,8 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
-CELERY_BROKER_URL = os.environ['REDIS_URL']
-CELERY_RESULT_BACKEND = os.environ['REDIS_URL']
+CELERY_BROKER_URL = os.environ['CELERY_BACKEND']
+CELERY_RESULT_BACKEND = os.environ['CELERY_BROKER']
 ERRORS_CHANNEL = os.environ['ERRORS_CHANNEL']
 BOT_FATHER = os.environ['BOT_FATHER']
 BOT_TOKEN = os.environ['BOT_TOKEN']
