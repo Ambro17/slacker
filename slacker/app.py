@@ -1,13 +1,18 @@
-from flask import Flask
+import hashlib
+import hmac
+import os
+import time
+
+from flask import Flask, request
 from dotenv import load_dotenv
 from loguru import logger
 
 load_dotenv()
 
-from slacker.security import Crypto
 from .blueprints import commands as commands_bp, retroapp, interactivity, stickers, ovi_management, rooms
 from .database import db
 from .manage import clean, init_db
+from .security import Crypto
 from .utils import reply
 
 
@@ -48,8 +53,44 @@ def register_commands(app):
 
 
 def register_error_handlers(app):
-    """Register error handlers to respond nicely"""
-    # Validate that slack requests come from slack. See slackevents api for implementation hint
+    """Register app handlers to respond nicely"""
+
+    @app.before_request
+    def verify_request_signature():
+        """
+        On each HTTP request that Slack sends, they add an X-Slack-Signature
+        HTTP header. The signature is created by combining the signing secret
+        with the body of the request they're sending using a standard
+        HMAC-SHA256 keyed hash.
+
+        Docs: https://api.slack.com/docs/verifying-requests-from-slack#verification_token_deprecation
+
+        """
+        # Encode secrets as bytestrings
+        mainsecret = os.environ['CUERVOT_SIGNATURE'].encode('utf-8')
+        ovisecret = os.environ['OVIBOT_SIGNATURE'].encode('utf-8')
+
+        # Read request headers and reject it if it's too old
+        real_signature = request.headers['X-Slack-Signature']
+        timestamp = request.headers['X-Slack-Request-Timestamp']
+        if abs(time.time() - int(timestamp)) > 60 * 2:
+            return bad_request('Request too old')
+
+        # Build verification string with timestamp and request data
+        data = request.get_data()
+        verification_string = f'v0:{timestamp}:'.encode('utf-8') + data
+        try:
+            signature =  hmac.new(mainsecret, verification_string, hashlib.sha256).hexdigest()
+            assert hmac.compare_digest(f'v0={signature}', real_signature), "Invalid request. You are not slack"
+        except AssertionError:
+            # Retry with the other bot secret contained by the app
+            signature = hmac.new(ovisecret, verification_string, hashlib.sha256).hexdigest()
+            try:
+                assert hmac.compare_digest(signature, real_signature), "Invalid request. You are not slack"
+            except AssertionError:
+                # The request is definitely not from slack. Reject it
+                return bad_request('Invalid request secrets')
+
     @app.errorhandler(400)
     def not_found(error):
         return reply({'text': 'Bad request', 'error': repr(error)})
