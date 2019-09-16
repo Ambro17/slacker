@@ -16,3 +16,6 @@ loguru==0.2.5
 python-dotenv==0.10.2
 unidecode==1.1.1
 pillow==6.1.0
+google-api-python-client==1.7.11
+google-auth-oauthlib==0.4.0
+google-auth-httplib2==0.0.3
