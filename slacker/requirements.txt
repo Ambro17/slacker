@@ -15,3 +15,4 @@ lxml==4.3.2
 loguru==0.2.5
 python-dotenv==0.10.2
 unidecode==1.1.1
+pillow==6.1.0

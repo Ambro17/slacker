@@ -1,12 +1,23 @@
+"""
+Blueprint to manage rooms functionality
+- Find free rooms for meetings
+- Get room location
+- Show office map
+"""
+from os import path
+
 from flask import request, make_response
 from loguru import logger
 from google.auth.transport.requests import Request
 
-from slacker.api.rooms.locations import office_map, get_room_location
+from slacker.api.rooms.locations import (
+    get_room_location, create_image_from_map, draw_office_map, get_image_dir, OFFICE_MAP
+)
 from slacker.api.rooms.login import calendar
 from slacker.api.rooms.api import get_free_rooms, RoomFinder
 from slacker.slack_cli import OviBot
-from slacker.utils import BaseBlueprint, reply, reply_raw, monospace, reply_text
+from slacker.tasks_proxy import upload_file_async
+from slacker.utils import BaseBlueprint, reply, monospace, reply_text
 
 bp = BaseBlueprint('rooms', __name__, url_prefix='/rooms')
 
@@ -87,12 +98,24 @@ def find():
 @bp.route('/office_map', methods=('GET', 'POST'))
 def room_map():
     """Show room map"""
-    return reply_raw(monospace(office_map))
+    channel = request.form.get('channel_id')
+    image_path = OFFICE_MAP
+    if not path.exists(image_path):
+        logger.debug('Building office map..')
+        image_path = draw_office_map(image_path)
+
+    logger.debug('Uploading file..')
+    task = upload_file_async(image_path,
+                             channel=channel,
+                             filename='office.png')  # Maybe avoid re-uploading by saving file id.
+    logger.debug('Upload office image task sent. {}', task.id)
+    return reply_text('Drawing image... :clock4:')
 
 
 @bp.route('/room_location', methods=('GET', 'POST'))
 def locate_room():
     """Show where a room is on the map"""
+    channel = request.form.get('channel_id')
     room_name = request.form.get('text')
     if not room_name:
         return reply_text('Specify a room. To show office map run `/office_map`')
@@ -103,4 +126,14 @@ def locate_room():
         return reply_text('Specified room does not exist. Check for typos')
 
     location_map = get_room_location(room)
-    return reply_text(monospace(location_map))
+    image_path = get_image_dir(f'{room.name}.png')
+    logger.debug('PATH: {}', image_path)
+    if not path.exists(image_path):
+        logger.debug('Generating image for {}', room.name)
+        image_path = create_image_from_map(location_map, image_path)
+        logger.debug('Image created at {}', image_path)
+
+    logger.debug('Image path to upload: {}', image_path)
+    upload_file_async(file=image_path, channel=channel, filename=room.name)
+    logger.debug('Image uploaded')
+    return reply_text('Locating room.. :mag:')

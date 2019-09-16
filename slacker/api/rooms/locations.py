@@ -1,3 +1,8 @@
+from functools import partial
+from os.path import dirname, abspath, join as os_join
+from PIL import Image, ImageDraw, ImageFont
+from loguru import logger
+
 from slacker.api.rooms.api import RoomFinder, Room
 
 office_map = """
@@ -21,10 +26,10 @@ office_map = """
 4. Shannon
 
 ╔══════════════════╗          ╔═══════════════╦═════╗  ╔════╦═════════╦════╗
-║ 1st Floor        ║          ║               ║  5  ║  ║    ║    9    ║    ║
-║                  ║          ║               ╠═════╣  ║ 8  ║         ║ 10 ║
+║ 1st Floor        ║          ║               ║  5  ║  ║    ║         ║    ║
+║                  ║          ║               ╠═════╣  ║    ║    9    ║    ║
 ║                  ║          ║               ║  6  ║  ║    ╠═════════╣    ║
-║                  ║          ║               ╠═════╣  ║    ║         ║    ║
+║                  ║          ║               ╠═════╣  ║  8 ║         ║ 10 ║
 ║                  ║          ║               ║  7  ║  ╠════╝         ╚════╣
 ║                  ║          ║               ╚═════╣  ║                   ║
 ║                  ║          ║                     ║  ║                   ║
@@ -58,7 +63,7 @@ office_map = """
 
 12. Turing
 13. Angela Ruiz
-"""
+""".strip()
 
 
 ground_floor = """
@@ -75,7 +80,7 @@ ground_floor = """
 ╚════════╦═════════╦════════════════════════════════╝
          ║    {shannon}    ║
          ╚═════════╝
-"""
+""".strip()
 
 
 first_floor = """
@@ -92,7 +97,7 @@ first_floor = """
 ╚════════╦═════════╦═════════════════════════════════════════════════════╝
          ║    {huffman}    ║
          ╚═════════╝
-"""
+""".strip()
 
 
 second_floor = """
@@ -109,7 +114,7 @@ second_floor = """
 ╚════════╦═════════╦═══════════════════════════════╝
          ║    {angela_ruiz}    ║
          ╚═════════╝
-"""
+""".strip()
 
 
 rooms = {
@@ -118,6 +123,9 @@ rooms = {
     2: second_floor,
 }
 MARK = '■'
+IMAGES_DIR = os_join(dirname(abspath(__file__)), '.images')
+get_image_dir = partial(os_join, IMAGES_DIR)
+OFFICE_MAP = get_image_dir('office_map.png')
 
 
 def get_room_location(room: Room):
@@ -128,6 +136,26 @@ def get_room_location(room: Room):
     return room_map.format(**default_format_args)
 
 
+def create_image_from_map(amap: str, image_path, **kwargs):
+    return create_image(amap, image_path, **kwargs)
+
+
 def normalize(name):
     """Replace spaces by underscores and lowercase it"""
     return name.lower().replace(' ', '_')
+
+
+def create_image(text, image_path, size=(620, 240), text_pos_xy=(15, 5), font_size=14):
+    black = (0, 0, 0)
+    logger.debug(f'Creating image at {image_path}')
+    img = Image.new('RGB', size, color='white')
+    drawer = ImageDraw.Draw(img)
+    font = ImageFont.truetype('/Library/Fonts/DejaVuSansMono.ttf', font_size)
+    drawer.text(text_pos_xy, text, font=font, fill=black)
+    img.save(image_path, quality=95)
+    logger.debug(f'Image saved at {image_path}')
+    return image_path
+
+
+def draw_office_map(path):
+    return create_image(office_map, path, size=(1100, 1600), text_pos_xy=(15, 15), font_size=24)

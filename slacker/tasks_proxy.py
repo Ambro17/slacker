@@ -8,6 +8,10 @@ def send_ephemeral_message_async(message, channel, user):
     return celery.send_task('tasks.send_ephemeral_message', args=(message, channel, user))
 
 
+def upload_file_async(file, channel, filename='file', header=''):
+    return celery.send_task('tasks.upload_file', args=(file, channel, filename, header))
+
+
 def start_vms_task(user_vms, target_vms, name, tk, **kwargs):
     return celery.send_task('tasks.start_vms', args=(user_vms, target_vms, name, tk), kwargs=kwargs)
 
@@ -26,4 +30,3 @@ def redeploy_vm_task(user_vms, target_vm, snapshot_id, name, tk, **kwargs):
 
 def get_snapshots_task(name, tk, **kwargs):
     return celery.send_task('tasks.get_redeploy_snapshots', args=(name, tk), kwargs=kwargs)
-

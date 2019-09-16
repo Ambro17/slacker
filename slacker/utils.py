@@ -5,7 +5,7 @@ from functools import wraps
 import requests
 import time
 from bs4 import BeautifulSoup
-from flask import jsonify, Blueprint
+from flask import jsonify, Blueprint, make_response
 from loguru import logger
 
 from slacker.models import User

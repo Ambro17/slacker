@@ -49,7 +49,7 @@ def register_commands(app):
 
 def register_error_handlers(app):
     """Register error handlers to respond nicely"""
-    # Validate that slack requests come from slack.
+    # Validate that slack requests come from slack. See slackevents api for implementation hint
     @app.errorhandler(400)
     def not_found(error):
         return reply({'text': 'Bad request', 'error': repr(error)})
@@ -60,4 +60,4 @@ def register_error_handlers(app):
 
     @app.errorhandler(500)
     def server_error(error):
-        return reply({'text': 'Server error. Sh*t happens.', 'error': repr(error)})
+        return reply({'text': 'Oops ¯\\_(ツ)_/¯. Errors happen', 'error': repr(error)})
