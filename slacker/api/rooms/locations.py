@@ -123,7 +123,7 @@ rooms = {
     2: second_floor,
 }
 MARK = '■'
-IMAGES_DIR = os_join(dirname(abspath(__file__)), '.images')
+IMAGES_DIR = os_join(dirname(abspath(__file__)), 'images')
 get_image_dir = partial(os_join, IMAGES_DIR)
 OFFICE_MAP = get_image_dir('office_map.png')
 
