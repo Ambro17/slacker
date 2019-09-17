@@ -36,13 +36,15 @@ $ cd task_queue && celery worker -A tasks --loglevel=info # Start worker
 │   │   ├── hoypido
 │   │   ├── poll
 │   │   ├── retro
-│   │   ├── stickers
+│   │   ├── rooms
+│   │   │   └── images
 │   │   └── subte
 │   ├── blueprints
 │   │   ├── commands.py
 │   │   ├── interactivity.py
 │   │   ├── ovi_management.py
 │   │   ├── retroapp.py
+│   │   ├── rooms.py
 │   │   └── stickers.py
 │   └── models
 │       ├── aws
@@ -54,7 +56,6 @@ $ cd task_queue && celery worker -A tasks --loglevel=info # Start worker
     ├── api
     ├── blueprints
     └── models
-
 ```
 The project uses Flask as a framework and follows the application factory pattern to ease testing and development.
 Tests folder replicates the hierarchy on slacker dir.
@@ -94,7 +95,14 @@ To run tests run pytest on the project dir.
 `$ pytest`
 
 # Future features
-`/room_map`
+`/code`  Highlight code as monospace (or share a link to the snippet)
+
+`/meet @user1 @user2`
+
+`/on_home_office` - Set status to working for one day
+
+`/not_available [hs]` - Set as not available to discourage interruptions
+
 `/suscribe <subte_line>`
 
 `/futbol <Dia>+` - Anotarse para el partido
@@ -104,14 +112,6 @@ To run tests run pytest on the project dir.
 `/accountant`
 
 `/challenge <ping_pong|play|metegol> @someone [optional_taunt]` - Send a private message challenging a rival
-
-`/code <snippet>` - Highlight code as monospace (or share a link to the snippet)
-
-`/room <name>` - Get location of meeting room
-
-`/on_home_office` - Set status to working for one day
-
-`/not_available [hs]` - Set as not available to discourage interruptions
 
 
 ## Credits
