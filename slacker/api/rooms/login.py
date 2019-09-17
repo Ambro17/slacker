@@ -8,6 +8,8 @@ from google_auth_oauthlib.flow import Flow
 from google.auth.transport.requests import Request
 from loguru import logger
 
+from slacker.app_config import CALENDAR_CLIENT, CALENDAR_SECRET
+
 
 class ApiLogin(Flow):
     """Helper class to interact with google apis in a more dev-friendly/slack-compatible way"""
@@ -122,6 +124,6 @@ class ApiLogin(Flow):
 
 
 calendar = ApiLogin.from_secrets(
-    client_id=os.environ['CALENDAR_CLIENT'],
-    client_secret=os.environ['CALENDAR_SECRET'],
+    client_id=CALENDAR_CLIENT,
+    client_secret=CALENDAR_SECRET,
 )

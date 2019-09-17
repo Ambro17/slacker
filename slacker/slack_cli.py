@@ -1,8 +1,6 @@
-import os
 from slack import WebClient
-from dotenv import load_dotenv
+from slacker.app_config import CUERVOT, OVIBOT
 
-load_dotenv()
-Cuervot = WebClient(os.environ["CUERVOT"])
-OviBot = WebClient(os.environ["OVIBOT"])
+Cuervot = WebClient(CUERVOT)
+OviBot = WebClient(OVIBOT)
 Slack = slack_cli = Cuervot

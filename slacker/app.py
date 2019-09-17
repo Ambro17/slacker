@@ -1,22 +1,19 @@
 import hashlib
 import hmac
-import os
 import time
 
 from flask import Flask, request
-from dotenv import load_dotenv
 from loguru import logger
-
-load_dotenv()
 
 from .blueprints import commands as commands_bp, retroapp, interactivity, stickers, ovi_management, rooms
 from .database import db
 from .manage import clean, init_db
 from .security import Crypto
+from .app_config import CUERVOT_SIGNATURE, OVIBOT_SIGNATURE
 from .utils import reply
 
 
-def create_app(config_object='slacker.settings'):
+def create_app(config_object='slacker.app_config'):
     """Create and configure an instance of the Flask application."""
     app = Flask(__name__)
     app.config.from_object(config_object)
@@ -67,8 +64,8 @@ def register_error_handlers(app):
 
         """
         # Encode secrets as bytestrings
-        mainsecret = os.environ['CUERVOT_SIGNATURE'].encode('utf-8')
-        ovisecret = os.environ['OVIBOT_SIGNATURE'].encode('utf-8')
+        mainsecret = CUERVOT_SIGNATURE.encode('utf-8')
+        ovisecret = OVIBOT_SIGNATURE.encode('utf-8')
 
         # Read request headers and reject it if it's too old
         real_signature = request.headers['X-Slack-Signature']

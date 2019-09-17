@@ -12,12 +12,13 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
-CELERY_BROKER_URL = os.environ['CELERY_BACKEND']
-CELERY_RESULT_BACKEND = os.environ['CELERY_BROKER']
-ERRORS_CHANNEL = os.environ['ERRORS_CHANNEL']
-BOT_FATHER = os.environ['BOT_FATHER']
 BOT_TOKEN = os.environ['BOT_TOKEN']
 OVIBOT = os.environ["OVIBOT"]
+ERRORS_CHANNEL = os.environ['ERRORS_CHANNEL']
+BOT_FATHER = os.environ['BOT_FATHER']
+CELERY_BROKER_URL = os.environ['CELERY_BACKEND']
+CELERY_RESULT_BACKEND = os.environ['CELERY_BROKER']
+
 
 celery = _celery.Celery('tasks', broker=CELERY_BROKER_URL, backend=CELERY_RESULT_BACKEND)
 Slack = WebClient(BOT_TOKEN)
