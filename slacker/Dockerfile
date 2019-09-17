@@ -3,6 +3,8 @@ FROM python:3.6-slim
 ENV PYTHONUNBUFFERED 1
 ENV PORT=3000
 
+RUN apt-get update && apt-get install -qq -y build-essential --no-install-recommends
+
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
