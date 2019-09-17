@@ -86,7 +86,7 @@ def register_error_handlers(app):
             # Retry with the other bot secret contained by the app
             signature = hmac.new(ovisecret, verification_string, hashlib.sha256).hexdigest()
             try:
-                assert hmac.compare_digest(signature, real_signature), "Invalid request. You are not slack"
+                assert hmac.compare_digest(f'v0={signature}', real_signature), "Invalid request. You are not slack"
             except AssertionError:
                 # The request is definitely not from slack. Reject it
                 return bad_request('Invalid request secrets')
