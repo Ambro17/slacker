@@ -1,6 +1,7 @@
 import hashlib
 import hmac
 import time
+import traceback
 
 from flask import Flask, request
 from loguru import logger
@@ -102,4 +103,6 @@ def register_error_handlers(app):
 
     @app.errorhandler(500)
     def server_error(error):
+        exception_text = traceback.format_exc()
+        logger.error(f'Error: {repr(error)}\nTraceback:\n{exception_text}')
         return reply({'text': 'Oops ¯\\_(ツ)_/¯. Errors happen', 'error': repr(error)})

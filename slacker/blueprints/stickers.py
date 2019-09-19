@@ -109,15 +109,3 @@ def delete_sticker():
         msg = f'{sticker_name} deleted :check:'
 
     return command_response(msg)
-
-
-@bp.errorhandler(500)
-def not_found(error):
-    exception_text = traceback.format_exc()
-    logger.error(f'Error: {repr(error)}\nTraceback:\n{exception_text}')
-    resp = {
-        'text': f'You hurt the bot :face_with_head_bandage:.. Be gentle when speaking with him.\n'
-                f'Error: `{repr(error)}`'
-    }
-
-    return reply(resp)
