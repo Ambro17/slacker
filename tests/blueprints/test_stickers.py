@@ -12,3 +12,5 @@ def test_sticker_unique_name(db, caplog):
     assert 'UNIQUE constraint failed' in caplog.text
     stickers = db.session.query(Sticker).all()
     assert len(stickers) == 1
+
+

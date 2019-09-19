@@ -38,6 +38,12 @@ def db(app):
 
 
 @pytest.fixture
+def test_app(app):
+    app.before_request_funcs = {}  # Avoid validating slack signature
+    return app.test_client()
+
+
+@pytest.fixture
 def client(app):
     """A test client for the app to check its endpoints."""
     return app.test_client()
@@ -49,12 +55,6 @@ def slack_cli(mocker):
     cli = mocker.MagicMock()
     mocker.patch.object(cli, 'api_call')
     return cli
-
-
-@pytest.fixture
-def runner(app):
-    """A test runner for the app's Click commands."""
-    return app.test_cli_runner()
 
 
 @pytest.fixture(scope='session')

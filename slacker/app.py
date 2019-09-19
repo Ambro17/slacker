@@ -68,8 +68,12 @@ def register_error_handlers(app):
         ovisecret = OVIBOT_SIGNATURE.encode('utf-8')
 
         # Read request headers and reject it if it's too old
-        real_signature = request.headers['X-Slack-Signature']
-        timestamp = request.headers['X-Slack-Request-Timestamp']
+        try:
+            real_signature = request.headers['X-Slack-Signature']
+            timestamp = request.headers['X-Slack-Request-Timestamp']
+        except KeyError:
+            return bad_request('Are you really slack?')
+
         if abs(time.time() - int(timestamp)) > 60 * 2:
             return bad_request('Request too old')
 

@@ -126,12 +126,14 @@ def reply_raw(response, status=200, response_type=JSON_TYPE):
 
 reply_text = reply_raw
 
+
 def ephemeral_reply(text):
     resp = {
         'text': text,
         "response_type": 'ephemeral',
     }
     return reply(resp)
+
 
 BOT_ICON = "https://i.imgur.com/rOpT9uS.png"
 def command_response(text, **kwargs):
@@ -207,3 +209,4 @@ def add_user(user):
         else:
             db.session.commit()
             logger.info('User %s added to db', user['id'])
+
