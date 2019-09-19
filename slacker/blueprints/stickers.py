@@ -16,7 +16,7 @@ bp = BaseBlueprint('sticker', __name__, url_prefix='/sticker')
 
 @bp.route('/add', methods=('GET', 'POST'))
 def add_sticker():
-    text = request.form.get('text')
+    text = request.form.get('text', '')
     user_id = request.form.get('user_id')
     try:
         name, url = text.split()
@@ -26,16 +26,6 @@ def add_sticker():
     # Should check if url is reachable, but infosec doesn't allow to reach it
     msg = _add_sticker(user_id, name, url)
     return command_response(msg)
-
-
-def _check_reachable_url(url):
-    # Not used because infosec policies? don't allow it
-    try:
-        r = requests.get(url, timeout=2)
-        return r.status_code == 200
-    except Exception as e:
-        logger.error(f'Not reachable URL: {repr(e)}')
-        return False
 
 
 def _add_sticker(author, name, image_url):
@@ -53,7 +43,7 @@ def _add_sticker(author, name, image_url):
 def send_sticker():
     sticker_name = request.form.get('text')
     if not sticker_name:
-        resp = command_response('Error. Usage: `/send_sticker sticker_name`')
+        resp = command_response('Bad usage. Usage: `/send_sticker sticker_name`')
     else:
         resp = lookup_sticker(sticker_name)
 
@@ -113,7 +103,7 @@ def delete_sticker():
     user_id = request.form.get('user_id')
     sticker = Sticker.query.filter_by(name=sticker_name, author=user_id).one_or_none()
     if not sticker:
-        msg = f'No sticker found under {sticker_name}. Are you the original uploader?'
+        msg = f'No sticker found under `{sticker_name}`. Are you the original uploader?'
     else:
         db.session.delete(sticker)
         msg = f'{sticker_name} deleted :check:'

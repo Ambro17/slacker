@@ -4,6 +4,7 @@ import factory.fuzzy
 from factory.alchemy import SQLAlchemyModelFactory
 
 from slacker.database import db
+from slacker.models import Sticker
 from slacker.models.aws import VM, VMOwnership
 from slacker.models.poll import Poll, Option, Vote
 from slacker.models.retro import Sprint, Team, RetroItem
@@ -118,3 +119,8 @@ class OptionFactory(BaseFactory):
 class VoteFactory(BaseFactory):
     class Meta:
         model = Vote
+
+
+class StickerFactory(BaseFactory):
+    class Meta:
+        model = Sticker
