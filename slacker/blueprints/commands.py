@@ -1,3 +1,5 @@
+import re
+
 from flask import Blueprint, request
 from loguru import logger
 
@@ -6,8 +8,9 @@ from slacker.api.hoypido import get_hoypido_specials, get_hoypido_by_day, get_ho
 from slacker.api.subte import get_subte
 from slacker.models.poll import Poll
 from slacker.models.user import get_or_create_user
-from slacker.slack_cli import slack_cli, Slack
-from slacker.utils import reply, command_response, USER_REGEX, ephemeral_reply
+from slacker.slack_cli import slack_cli
+from slacker.tasks_proxy import send_message_async
+from slacker.utils import reply, command_response, USER_REGEX, ephemeral_reply, OK
 
 from slacker.worker import celery
 
@@ -74,26 +77,17 @@ def feriados():
     return command_response(response)
 
 
-@bp.route('/hoypido_all', methods=('GET', 'POST'))
+@bp.route('/hoypido', methods=('GET', 'POST'))
 def hoypido():
-    menus = get_hoypido_all()
-    return command_response(menus)
+    args = request.form.get('text', '')
+    by_day = re.search(r'-d \w', args)
+    if by_day:
+        menus = get_hoypido_by_day(by_day.group(1))
+    elif '--all' in args:
+        menus = get_hoypido_all()
+    else:
+        menus = get_hoypido_specials()
 
-
-@bp.route('/hoypido_specials', methods=('GET', 'POST'))
-def hoypido_specials():
-    menus = get_hoypido_specials()
-    return command_response(menus)
-
-
-@bp.route('/hoypido_by_day', methods=('GET', 'POST'))
-def hoypido_by_day():
-    day = request.form.get('text', '')
-    if day.upper() not in set('LMXJVS'):
-        opts = "`L`, `M`, `X`, `J` and `V`"
-        return command_response(f'You forgot to specify a day. Options are: {opts}')
-
-    menus = get_hoypido_by_day(day)
     return command_response(menus)
 
 
@@ -128,16 +122,11 @@ def create_poll():
         }
         for option_number in range(1, len(poll.options) + 1)
     ]
-    blocks = [
+    poll_message_block = [
         msg_section,
         {'type': 'actions', 'block_id': f'{poll.id}', 'elements': block_elems}
     ]
-    r = Slack.chat_postMessage(channel=channel, blocks=blocks)
-    if not r['ok']:
-        logger.error(r)
-        return command_response('Error!')
-
-    OK = ''
+    send_message_async(channel, blocks=poll_message_block)
     return OK, 200
 
 
@@ -191,9 +180,3 @@ def ping():
     ]
     celery.send_task("tasks.send_message_with_blocks", args=(block, mention))
     return ephemeral_reply(f'{defied_user.first_name} was challenged :table_tennis_paddle_and_ball:')
-
-
-@bp.errorhandler(500)
-def not_found(error):
-    resp = {'text': f':anger:  {repr(error)}'}
-    return reply(resp)

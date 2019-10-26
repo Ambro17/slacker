@@ -8,6 +8,11 @@ def send_ephemeral_message_async(message, channel, user):
     return celery.send_task('tasks.send_ephemeral_message', args=(message, channel, user))
 
 
+def send_message_async(channel, **kwargs):
+    """Message or blocks is mandatory"""
+    return celery.send_task('tasks.send_message', args=(channel, ), kwargs=kwargs)
+
+
 def upload_file_async(file, channel, filename='file', header=''):
     return celery.send_task('tasks.upload_file', args=(file, channel, filename, header))
 

@@ -68,8 +68,8 @@ class SlackTask(_celery.Task):
 
 
 @celery.task(base=SlackTask)
-def send_message(message: str, channel: str = '#general', **kwargs) -> (bool, str):
-    r = Slack.chat_postMessage(channel=channel, text=message, **kwargs)
+def send_message(channel: str, **kwargs) -> (bool, str):
+    r = Slack.chat_postMessage(channel=channel, **kwargs)
     if not r['ok']:
         raise ResponseNotOK(f"Slack api request error:\n{r.get('error')}")
 

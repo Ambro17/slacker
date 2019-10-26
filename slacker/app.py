@@ -5,11 +5,11 @@ import time
 from flask import Flask, request
 from loguru import logger
 
+from .app_config import CUERVOT_SIGNATURE, OVIBOT_SIGNATURE, HASH_SECRET, SQLALCHEMY_DATABASE_URI, DEBUG
 from .blueprints import commands as commands_bp, retroapp, interactivity, stickers, ovi_management, rooms
 from .database import db
 from .manage import clean, init_db
 from .security import Crypto
-from .app_config import CUERVOT_SIGNATURE, OVIBOT_SIGNATURE
 from .utils import reply
 
 
@@ -29,8 +29,8 @@ def create_app(config_object='slacker.app_config'):
 def register_extensions(app):
     """Register db and bcrypt extensions."""
     db.init_app(app)
-    Crypto.configure(app.config['HASH_SECRET'])
-    logger.debug(f"Database: {app.config['SQLALCHEMY_DATABASE_URI']}")
+    Crypto.configure(HASH_SECRET)
+    logger.debug(f"Database: {SQLALCHEMY_DATABASE_URI}")
 
 
 def register_blueprints(app):
@@ -63,30 +63,35 @@ def register_error_handlers(app):
         Docs: https://api.slack.com/docs/verifying-requests-from-slack#verification_token_deprecation
 
         """
+        if DEBUG:
+            logger.debug('Dev mode. Bypassing signature checking..')
+            return
+
         # Encode secrets as bytestrings
         mainsecret = CUERVOT_SIGNATURE.encode('utf-8')
         ovisecret = OVIBOT_SIGNATURE.encode('utf-8')
 
         # Read request headers and reject it if it's too old
-        real_signature = request.headers['X-Slack-Signature']
-        timestamp = request.headers['X-Slack-Request-Timestamp']
-        if abs(time.time() - int(timestamp)) > 60 * 2:
+        logger.debug('Headers:\n{}', request.headers)
+        slack_signature = request.headers.get('X-Slack-Signature')
+        timestamp = request.headers.get('X-Slack-Request-Timestamp')
+        if not slack_signature or not timestamp:
+            return bad_request('Missing required headers')
+
+        if abs(time.time() - float(timestamp)) > 60 * 2:
             return bad_request('Request too old')
 
         # Build verification string with timestamp and request data
         data = request.get_data()
         verification_string = f'v0:{timestamp}:'.encode('utf-8') + data
-        try:
+        for secret in (mainsecret, ovisecret):
             signature =  hmac.new(mainsecret, verification_string, hashlib.sha256).hexdigest()
-            assert hmac.compare_digest(f'v0={signature}', real_signature), "Invalid request. You are not slack"
-        except AssertionError:
-            # Retry with the other bot secret contained by the app
-            signature = hmac.new(ovisecret, verification_string, hashlib.sha256).hexdigest()
-            try:
-                assert hmac.compare_digest(f'v0={signature}', real_signature), "Invalid request. You are not slack"
-            except AssertionError:
-                # The request is definitely not from slack. Reject it
-                return bad_request('Invalid request secrets')
+            is_valid = hmac.compare_digest(f'v0={signature}', slack_signature), "Invalid request. You are not slack"
+            if is_valid:
+                # Request comes from slack. It will follow the normal path of a flask request.
+                break
+        else:
+            return bad_request('Invalid request secrets')
 
     @app.errorhandler(400)
     def not_found(error):
@@ -94,7 +99,7 @@ def register_error_handlers(app):
 
     @app.errorhandler(404)
     def bad_request(error):
-        return reply({'text': 'Invalid Request', 'error': repr(error)})
+        return reply({'text': 'Resource not found', 'error': repr(error)})
 
     @app.errorhandler(500)
     def server_error(error):

@@ -34,7 +34,6 @@ class ApiLogin(Flow):
                 "redirect_uris": [redirect_uri]
             }
         }
-        logger.debug('Created api login with secrets')
         return cls(oauth2session, cls.APP_TYPE, client_config,
                    redirect_uri=redirect_uri, code_verifier='abc123')
 
