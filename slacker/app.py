@@ -1,6 +1,7 @@
 import hashlib
 import hmac
 import time
+import traceback
 
 from flask import Flask, request
 from loguru import logger
@@ -73,25 +74,27 @@ def register_error_handlers(app):
 
         # Read request headers and reject it if it's too old
         logger.debug('Headers:\n{}', request.headers)
-        slack_signature = request.headers.get('X-Slack-Signature')
-        timestamp = request.headers.get('X-Slack-Request-Timestamp')
-        if not slack_signature or not timestamp:
+
+        try:
+            real_signature = request.headers['X-Slack-Signature']
+            timestamp = request.headers['X-Slack-Request-Timestamp']
+        except KeyError:
             return bad_request('Missing required headers')
 
-        if abs(time.time() - float(timestamp)) > 60 * 2:
+        if abs(time.time() - int(timestamp)) > 60 * 2:
             return bad_request('Request too old')
 
         # Build verification string with timestamp and request data
         data = request.get_data()
         verification_string = f'v0:{timestamp}:'.encode('utf-8') + data
         for secret in (mainsecret, ovisecret):
-            signature =  hmac.new(mainsecret, verification_string, hashlib.sha256).hexdigest()
-            is_valid = hmac.compare_digest(f'v0={signature}', slack_signature), "Invalid request. You are not slack"
+            signature_from_request = hmac.new(secret, verification_string, hashlib.sha256).hexdigest()
+            is_valid = hmac.compare_digest(f'v0={real_signature}', signature_from_request)
             if is_valid:
                 # Request comes from slack. It will follow the normal path of a flask request.
                 break
         else:
-            return bad_request('Invalid request secrets')
+            return bad_request("Failed request authenticity check. You are not slack..")
 
     @app.errorhandler(400)
     def not_found(error):
@@ -103,4 +106,6 @@ def register_error_handlers(app):
 
     @app.errorhandler(500)
     def server_error(error):
+        exception_text = traceback.format_exc()
+        logger.error(f'Error: {repr(error)}\nTraceback:\n{exception_text}')
         return reply({'text': 'Oops ¯\\_(ツ)_/¯. Errors happen', 'error': repr(error)})

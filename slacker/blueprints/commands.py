@@ -20,8 +20,7 @@ bp = Blueprint('commands', __name__)
 @bp.route('/', methods=('GET', 'POST'))
 def index():
     return reply({
-        'error': "You must specify a command.",
-        'commands': ['feriados', 'hoypido', 'subte']
+        'error': "You must specify a command route.",
     })
 
 

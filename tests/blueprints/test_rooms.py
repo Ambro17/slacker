@@ -21,7 +21,7 @@ def test_room_location_second_floor():
 ╚════════╦═════════╦═══════════════════════════════╝
          ║    ■    ║
          ╚═════════╝
-"""
+""".strip()
     angela = RoomFinder.get_room_by_name('TuRing')
     result = get_room_location(angela)
     assert result == """
@@ -38,7 +38,7 @@ def test_room_location_second_floor():
 ╚════════╦═════════╦═══════════════════════════════╝
          ║         ║
          ╚═════════╝
-"""
+""".strip()
 
 
 @pytest.mark.parametrize('room, expected_map', [
@@ -58,7 +58,7 @@ def test_room_location_second_floor():
 ╚════════╦═════════╦════════════════════════════════╝
          ║         ║
          ╚═════════╝
-"""
+""".strip()
     ),
     (
             'Godel',
@@ -76,7 +76,8 @@ def test_room_location_second_floor():
 ╚════════╦═════════╦════════════════════════════════╝
          ║         ║
          ╚═════════╝
-"""),
+""".strip()
+    ),
 
     (
             'diFFie',
@@ -94,7 +95,7 @@ def test_room_location_second_floor():
 ╚════════╦═════════╦════════════════════════════════╝
          ║         ║
          ╚═════════╝
-"""
+""".strip()
     ),
     (
             'Shannon',
@@ -112,7 +113,7 @@ def test_room_location_second_floor():
 ╚════════╦═════════╦════════════════════════════════╝
          ║    ■    ║
          ╚═════════╝
-"""
+""".strip()
     ),
 ])
 def test_room_location_ground_floor(room, expected_map):
@@ -139,7 +140,7 @@ def test_room_location_ground_floor(room, expected_map):
 ╚════════╦═════════╦═════════════════════════════════════════════════════╝
          ║         ║
          ╚═════════╝
-"""
+""".strip()
     ),
     (
             'anita borg',
@@ -157,7 +158,7 @@ def test_room_location_ground_floor(room, expected_map):
 ╚════════╦═════════╦═════════════════════════════════════════════════════╝
          ║         ║
          ╚═════════╝
-"""
+""".strip()
     ),
     (
             'lovelace',
@@ -175,7 +176,7 @@ def test_room_location_ground_floor(room, expected_map):
 ╚════════╦═════════╦═════════════════════════════════════════════════════╝
          ║         ║
          ╚═════════╝
-"""
+""".strip()
     ),
     (
             'boole',
@@ -193,7 +194,7 @@ def test_room_location_ground_floor(room, expected_map):
 ╚════════╦═════════╦═════════════════════════════════════════════════════╝
          ║         ║
          ╚═════════╝
-"""
+""".strip()
     ),
     (
             'ritchie',
@@ -211,7 +212,7 @@ def test_room_location_ground_floor(room, expected_map):
 ╚════════╦═════════╦═════════════════════════════════════════════════════╝
          ║         ║
          ╚═════════╝
-"""
+""".strip()
     ),
     (
             'hamming',
@@ -229,7 +230,7 @@ def test_room_location_ground_floor(room, expected_map):
 ╚════════╦═════════╦═════════════════════════════════════════════════════╝
          ║         ║
          ╚═════════╝
-"""
+""".strip()
     ),
     (
             'huffman',
@@ -247,11 +248,10 @@ def test_room_location_ground_floor(room, expected_map):
 ╚════════╦═════════╦═════════════════════════════════════════════════════╝
          ║    ■    ║
          ╚═════════╝
-"""
+""".strip()
     ),
 ])
 def test_room_location_first_floor(room, expected_map):
     theroom = RoomFinder.get_room_by_name(room)
     map = get_room_location(theroom)
-    print(map, expected_map)
     assert map == expected_map
