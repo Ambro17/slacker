@@ -69,14 +69,14 @@ def register_error_handlers(app):
             return
 
         # Encode secrets as bytestrings
-        mainsecret = CUERVOT_SIGNATURE.encode('utf-8')
-        ovisecret = OVIBOT_SIGNATURE.encode('utf-8')
+        mainsecret = CUERVOT_SIGNATURE
+        ovisecret = OVIBOT_SIGNATURE
 
         # Read request headers and reject it if it's too old
         logger.debug('Headers:\n{}', request.headers)
 
         try:
-            real_signature = request.headers['X-Slack-Signature']
+            request_hash = request.headers['X-Slack-Signature']
             timestamp = request.headers['X-Slack-Request-Timestamp']
         except KeyError:
             return bad_request('Missing required headers')
@@ -84,17 +84,8 @@ def register_error_handlers(app):
         if abs(time.time() - int(timestamp)) > 60 * 2:
             return bad_request('Request too old')
 
-        # Build verification string with timestamp and request data
-        data = request.get_data()
-        verification_string = f'v0:{timestamp}:'.encode('utf-8') + data
-        for secret in (mainsecret, ovisecret):
-            signature_from_request = hmac.new(secret, verification_string, hashlib.sha256).hexdigest()
-            is_valid = hmac.compare_digest(f'v0={real_signature}', signature_from_request)
-            if is_valid:
-                # Request comes from slack. It will follow the normal path of a flask request.
-                break
-        else:
-            return bad_request("Failed request authenticity check. You are not slack..")
+        if not verify_signatures(timestamp, request_hash, (mainsecret, ovisecret)):
+            return bad_request('Failed request authenticity check. You are not slack..')
 
     @app.errorhandler(400)
     def bad_request(error):
@@ -109,3 +100,20 @@ def register_error_handlers(app):
         exception_text = traceback.format_exc()
         logger.error(f'Error: {repr(error)}\nTraceback:\n{exception_text}')
         return reply({'text': 'Oops ¯\\_(ツ)_/¯. Errors happen', 'error': repr(error)})
+
+
+def verify_signatures(timestamp, signature, signing_secrets):
+    return any(verify_signature(timestamp, signature, app_signing_secret) for app_signing_secret in signing_secrets)
+
+
+def verify_signature(timestamp, signature, signing_secret):
+    # Verify the request signature of the request sent from Slack
+    # Generate a new hash using the app's signing secret, the request timestamp and data
+    req = f'v0:{timestamp}:'.encode('utf-8') + request.get_data()
+    request_hash = 'v0=' + hmac.new(
+        signing_secret.encode('utf-8'),
+        req,
+        hashlib.sha256
+    ).hexdigest()
+
+    return hmac.compare_digest(request_hash, signature)
