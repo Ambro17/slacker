@@ -97,11 +97,11 @@ def register_error_handlers(app):
             return bad_request("Failed request authenticity check. You are not slack..")
 
     @app.errorhandler(400)
-    def not_found(error):
+    def bad_request(error):
         return reply({'text': 'Bad request', 'error': repr(error)})
 
     @app.errorhandler(404)
-    def bad_request(error):
+    def not_found(error):
         return reply({'text': 'Resource not found', 'error': repr(error)})
 
     @app.errorhandler(500)

@@ -12,6 +12,6 @@ def test_unsigned_request_fails(client):
     assert response.status_code == 200
     assert response.content_type == 'application/json'
     assert response.json == {
-        'error': "'Are you really slack?'",
-        'text': 'Invalid Request'
+        'error': "'Missing required headers'",
+        'text': 'Bad request'
     }
