@@ -1,7 +1,4 @@
-import os
-
-from loguru import logger
-from sqlalchemy.ext.hybrid import hybrid_property
+from slacker.log import logger
 
 from slacker.security import Crypto
 from slacker.database import db

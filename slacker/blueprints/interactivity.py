@@ -5,16 +5,16 @@ necessary.
 """
 import json
 
-from loguru import logger
+from slacker.log import logger
 from flask import request
 
 from slacker.api.poll import user_has_voted
 from slacker.blueprints.ovi_management import handle_aws_submission
 from slacker.database import db
 from slacker.models import Poll, Vote
-from slacker.slack_cli import Slack
-from slacker.tasks_proxy import send_ephemeral_message_async
-from slacker.utils import BaseBlueprint, reply, ephemeral_reply, OK, reply_raw
+from slacker.slack_cli import Slack, PollsBot
+from slacker.tasks_proxy import send_ephemeral_message_async, send_ephemeral_message_polls
+from slacker.utils import BaseBlueprint, reply, ephemeral_reply, OK, reply_raw, reply_text
 from slacker.worker import celery
 
 bp = BaseBlueprint('interactive', __name__, url_prefix='/interactive')
@@ -27,10 +27,11 @@ def message_actions():
     try:
         return handle_action(action)
     except Exception as e:
+        logger.exception(f"Error handling interactive action: {action!r}")
         send_ephemeral_message_async(f'Something bad happened.\n`{repr(e)}`',
                                      channel=action['channel']['id'],
                                      user=action['user']['id'])
-        return reply_raw(OK)
+        return reply_text(OK)
 
 
 def handle_action(action):
@@ -76,9 +77,10 @@ def handle_action(action):
             user_id = action['user']['id']
             if user_has_voted(user_id, poll.id):
                 logger.debug('User has already voted')
-                send_ephemeral_message_async('Cheater! You have already voted.',
+                send_ephemeral_message_polls('Cheater! You have already voted.',
                                              channel=action['channel']['id'],
                                              user=user_id)
+
                 return reply_raw(OK)
 
             db.session.add(Vote(poll=poll, option=option, user_id=user_id))
@@ -87,7 +89,7 @@ def handle_action(action):
             blocks = action['message']['blocks']
             # Update block's text with new votes
             blocks[0]['text']['text'] = str(poll)
-            r = Slack.chat_update(channel=action['channel']['id'], ts=action['message']['ts'], blocks=blocks)
+            r = PollsBot.chat_update(channel=action['channel']['id'], ts=action['message']['ts'], blocks=blocks)
             if not r['ok']:
                 logger.error(r)
                 return reply('Error updating vote')

@@ -4,7 +4,7 @@ from typing import List
 
 from dotenv import load_dotenv
 import celery as _celery
-from awsadm.ovicli import OviCli
+from awsadm.ovicli import AWSCli as OviCli
 
 from slack import WebClient
 
@@ -12,17 +12,20 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
-BOT_TOKEN = os.environ['BOT_TOKEN']
-OVIBOT = os.environ["OVIBOT"]
-ERRORS_CHANNEL = os.environ['ERRORS_CHANNEL']
-BOT_FATHER = os.environ['BOT_FATHER']
 CELERY_BROKER_URL = os.environ['CELERY_BACKEND']
 CELERY_RESULT_BACKEND = os.environ['CELERY_BROKER']
-
+ERRORS_CHANNEL = os.environ['ERRORS_CHANNEL']
+BOT_FATHER = os.environ['BOT_FATHER']
+BOT_TOKEN = os.environ['BOT_TOKEN']
+OVIBOT_TOKEN = os.environ['OVIBOT_TOKEN']
+ROOMS_BA_TOKEN = os.environ['ROOMS_BA_TOKEN']
+POLLS_TOKEN = os.environ['POLLS_TOKEN']
 
 celery = _celery.Celery('tasks', broker=CELERY_BROKER_URL, backend=CELERY_RESULT_BACKEND)
 Slack = WebClient(BOT_TOKEN)
-OviBot = WebClient(OVIBOT)
+OviBot = WebClient(OVIBOT_TOKEN)
+RoomsBot = WebClient(ROOMS_BA_TOKEN)
+PollsBot = WebClient(POLLS_TOKEN)
 
 
 class ResponseNotOK(Exception):
@@ -31,13 +34,15 @@ class ResponseNotOK(Exception):
 
 def notify_error_to_admin(error_msg):
     mono_error = f'```{error_msg}```'
-    r = OviBot.chat_postEphemeral(channel=ERRORS_CHANNEL,
-                                  user=BOT_FATHER,
-                                  text=mono_error)
-    assert r['ok'], f"Admin not notified: {r['error']}"
+    r = Slack.chat_postEphemeral(channel=ERRORS_CHANNEL,
+                                 user=BOT_FATHER,
+                                 text=mono_error)
+    if not r['ok']:
+        raise ResponseNotOK(f"Admin not notified: {r['error']}")
+
+    logger.info("Admin was notified of error")
 
 
-# Slack tasks
 class SlackTask(_celery.Task):
     """Slack task wrapper to notify admin if a task failed"""
     def on_success(self, return_value, task_id, args, kwargs):
@@ -46,30 +51,45 @@ class SlackTask(_celery.Task):
             success, error_msg = return_value
         except ValueError:
             error_details = f"Slack Task returned {repr(return_value)} instead of tuple. {task_id} {args} {kwargs}."
+            logger.error(error_details)
             notify_error_to_admin(error_details)
             return
 
         if not success:
             error_details = f'Invalid Slack request: \n{error_msg}'
+            logger.error(error_details)
             notify_error_to_admin(error_details)
 
-        # If slack request was successful do nothing.
-
     def on_failure(self, exc, task_id, args, kwargs, einfo):
-        error_details = (
-            f'Exception handling slack task.\n'
-            f'Task id: {task_id}\n'
-            f'Details: {exc}\n'
-            f'Args: {args}\n'
-            f'Kwargs: {kwargs}\n'
-            f'Exception info:\n{einfo}'
-        )
+        error_details = f'Exception handling slack task.\n{exc} {args} {kwargs} {einfo} {task_id}.\n{einfo}'
+        logger.error(error_details)
         notify_error_to_admin(error_details)
 
 
+class OviTask(_celery.Task):
+    """Task to wrap ovicli calls. Return output unmodified. Notifying failure"""
+    def on_success(self, ovi_return_value, task_id, args, kwargs):
+        # Send task output to user
+        OviBot.chat_postEphemeral(
+            channel=kwargs['channel'],
+            user=kwargs['user'],
+            text=ovi_return_value,
+        )
+
+    def on_failure(self, task_exception, task_id, args, kwargs, einfo):
+        # Notify admin and user of failure (with different level of detail)
+        error_details = f'Exception: {task_exception}.\nDetails: {task_id}\n{args}\n{kwargs}\n{einfo}'
+        notify_error_to_admin(error_details)
+        OviBot.chat_postEphemeral(
+            channel=kwargs['channel'],
+            user=kwargs['user'],
+            text='Task failed, try again 🍀\nor visit https://oviup.corp.onapsis.com/',
+        )
+
+
 @celery.task(base=SlackTask)
-def send_message(channel: str, **kwargs) -> (bool, str):
-    r = Slack.chat_postMessage(channel=channel, **kwargs)
+def send_message(message: str, channel: str = '#general', **kwargs) -> (bool, str):
+    r = Slack.chat_postMessage(channel=channel, text=message, **kwargs)
     if not r['ok']:
         raise ResponseNotOK(f"Slack api request error:\n{r.get('error')}")
 
@@ -79,6 +99,15 @@ def send_message(channel: str, **kwargs) -> (bool, str):
 @celery.task(base=SlackTask)
 def send_ephemeral_message(message: str, channel: str, user: str, **kwargs) -> (bool, str):
     r = Slack.chat_postEphemeral(channel=channel, user=user, text=message, **kwargs)
+    if not r['ok']:
+        raise ResponseNotOK(f"Slack api request error:\n{r.get('error')}")
+
+    return r['ok'], r.get('error', '')
+
+
+@celery.task(base=SlackTask)
+def send_ephemeral_message_poll(message: str, channel: str, user: str, **kwargs) -> (bool, str):
+    r = PollsBot.chat_postEphemeral(channel=channel, user=user, text=message, **kwargs)
     if not r['ok']:
         raise ResponseNotOK(f"Slack api request error:\n{r.get('error')}")
 
@@ -96,33 +125,11 @@ def send_message_with_blocks(blocks: List[dict], channel: str, **kwargs) -> (boo
 
 @celery.task(base=SlackTask)
 def upload_file(file, channel, name, header, **kwargs) -> (bool, str):
-    r = OviBot.files_upload(file=file, channels=channel, filename=name, initial_comment=header, **kwargs)
+    r = RoomsBot.files_upload(file=file, channels=channel, filename=name, initial_comment=header, **kwargs)
     if not r['ok']:
         raise ResponseNotOK(f"Slack api request error:\n{r.get('error')}")
 
     return r['ok'], r.get('error', '')
-
-
-# Ovi Tasks
-class OviTask(_celery.Task):
-    """Task to wrap ovicli calls. Return output unmodified. Notifying failure"""
-    def on_success(self, ovi_return_value, task_id, args, kwargs):
-        # Send task output to user
-        Slack.chat_postEphemeral(
-            channel=kwargs['channel'],
-            user=kwargs['user'],
-            text=ovi_return_value,
-        )
-
-    def on_failure(self, task_exception, task_id, args, kwargs, einfo):
-        # Notify admin and user of failure (with different level of detail)
-        error_details = f'Exception: {task_exception}.\nDetails: {task_id}\n{args}\n{kwargs}\n{einfo}'
-        notify_error_to_admin(error_details)
-        Slack.chat_postEphemeral(
-            channel=kwargs['channel'],
-            user=kwargs['user'],
-            text='Task failed 😢',
-        )
 
 
 @celery.task(base=OviTask)
@@ -160,4 +167,3 @@ def get_redeploy_snapshots(ovi_user, token, **kwargs):
     cli = OviCli({}, ovi_user, token)
     out = cli.snapshots()
     return cli.format_snapshots(out, monospace=True)
-

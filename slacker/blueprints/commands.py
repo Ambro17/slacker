@@ -1,16 +1,13 @@
-import re
-
 from flask import Blueprint, request
-from loguru import logger
+from slacker.log import logger
 
 from slacker.api.feriados import get_feriadosarg
 from slacker.api.hoypido import get_hoypido_specials, get_hoypido_by_day, get_hoypido_all
 from slacker.api.subte import get_subte
 from slacker.models.poll import Poll
 from slacker.models.user import get_or_create_user
-from slacker.slack_cli import slack_cli
-from slacker.tasks_proxy import send_message_async
-from slacker.utils import reply, command_response, USER_REGEX, ephemeral_reply, OK
+from slacker.slack_cli import slack_cli, PollsBot
+from slacker.utils import reply, command_response, USER_REGEX, ephemeral_reply
 
 from slacker.worker import celery
 
@@ -20,7 +17,8 @@ bp = Blueprint('commands', __name__)
 @bp.route('/', methods=('GET', 'POST'))
 def index():
     return reply({
-        'error': "You must specify a command route.",
+        'error': "You must specify a command.",
+        'commands': ['feriados', 'hoypido', 'subte']
     })
 
 
@@ -76,17 +74,26 @@ def feriados():
     return command_response(response)
 
 
-@bp.route('/hoypido', methods=('GET', 'POST'))
+@bp.route('/hoypido_all', methods=('GET', 'POST'))
 def hoypido():
-    args = request.form.get('text', '')
-    by_day = re.search(r'-d \w', args)
-    if by_day:
-        menus = get_hoypido_by_day(by_day.group(1))
-    elif '--all' in args:
-        menus = get_hoypido_all()
-    else:
-        menus = get_hoypido_specials()
+    menus = get_hoypido_all()
+    return command_response(menus)
 
+
+@bp.route('/hoypido_specials', methods=('GET', 'POST'))
+def hoypido_specials():
+    menus = get_hoypido_specials()
+    return command_response(menus)
+
+
+@bp.route('/hoypido_by_day', methods=('GET', 'POST'))
+def hoypido_by_day():
+    day = request.form.get('text', '')
+    if day.upper() not in set('LMXJVS'):
+        opts = "`L`, `M`, `X`, `J` and `V`"
+        return command_response(f'You forgot to specify a day. Options are: {opts}')
+
+    menus = get_hoypido_by_day(day)
     return command_response(menus)
 
 
@@ -97,11 +104,13 @@ def create_poll():
     i.e: is this the real life? yes no
 
     """
+    logger.info("Creating Poll..")
     text = request.form.get('text')
     channel = request.form.get('channel_id')
 
     poll, error = Poll.from_string(text)
     if error:
+        logger.error("Error on input string %s", text)
         return command_response(error)
 
     msg_section = {
@@ -121,11 +130,17 @@ def create_poll():
         }
         for option_number in range(1, len(poll.options) + 1)
     ]
-    poll_message_block = [
+    blocks = [
         msg_section,
         {'type': 'actions', 'block_id': f'{poll.id}', 'elements': block_elems}
     ]
-    send_message_async(channel, blocks=poll_message_block)
+    logger.debug("Sending poll options as a votable message")
+    r = PollsBot.chat_postMessage(channel=channel, blocks=blocks)
+    if not r['ok']:
+        logger.error(r)
+        return command_response('Error!')
+    logger.debug("Poll sent.")
+    OK = ''
     return OK, 200
 
 
@@ -179,3 +194,9 @@ def ping():
     ]
     celery.send_task("tasks.send_message_with_blocks", args=(block, mention))
     return ephemeral_reply(f'{defied_user.first_name} was challenged :table_tennis_paddle_and_ball:')
+
+
+@bp.errorhandler(500)
+def not_found(error):
+    resp = {'text': f':anger:  {repr(error)}'}
+    return reply(resp)

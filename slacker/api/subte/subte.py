@@ -4,8 +4,9 @@ import logging
 
 import os
 import requests
+from requests.exceptions import ReadTimeout
 
-from slacker.app_config import CABA_CLI_ID, CABA_SECRET
+from slacker.utils import soupify_url
 
 logger = logging.getLogger(__name__)
 
@@ -38,8 +39,8 @@ def check_update():
     """
     url = 'https://apitransporte.buenosaires.gob.ar/subtes/serviceAlerts'
     params = {
-        'client_id': CABA_CLI_ID,
-        'client_secret': CABA_SECRET,
+        'client_id': os.environ['CABA_CLI_ID'],
+        'client_secret': os.environ['CABA_SECRET'],
         'json': 1,
     }
     r = requests.get(url, params=params, timeout=5)

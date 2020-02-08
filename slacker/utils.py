@@ -4,10 +4,11 @@ from functools import wraps
 
 import requests
 import time
-from bs4 import BeautifulSoup
-from flask import jsonify, Blueprint, make_response
-from loguru import logger
 
+from bs4 import BeautifulSoup
+from flask import jsonify, Blueprint
+
+from slacker.log import logger
 from slacker.models import User
 from slacker.database import db
 
@@ -141,7 +142,7 @@ def command_response(text, **kwargs):
         'text': text,
         "attachments": [
             {
-                "footer": "Cuervot",
+                "footer": kwargs.get('bot_name', 'Cuervot'),
                 "footer_icon": BOT_ICON,
                 "ts": time.time()
             }
@@ -209,4 +210,3 @@ def add_user(user):
         else:
             db.session.commit()
             logger.info('User %s added to db', user['id'])
-

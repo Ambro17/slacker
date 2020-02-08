@@ -1,14 +1,15 @@
+import logging
 import traceback
+from functools import partial
 from typing import List
 
 from flask import request, make_response
-from loguru import logger
 
 from slacker.database import db
 from slacker.exceptions import SlackerException
 from slacker.models import VM, VMOwnership
 from slacker.models.user import get_or_create_user
-from slacker.slack_cli import Slack
+from slacker.slack_cli import Slack, OviBot
 from slacker.tasks_proxy import (
     start_vms_task,
     stop_vms_task,
@@ -28,6 +29,10 @@ REDEPLOY_USAGE = "Usage: `/ovi_redeploy konsole <snapshot_id>`\nCheck `/snapshot
 WRONG_ALIAS_MESSAGE = "You don't have a VM under alias '{alias}'"
 
 bp = BaseBlueprint('ovi', __name__, url_prefix='/ovi')
+
+logger = logging.getLogger(__name__)
+
+command_response = partial(command_response, bot_name='OviBot')
 
 
 class OviException(SlackerException):
@@ -49,7 +54,9 @@ def index():
 @bp.route('/register', methods=('GET', 'POST'))
 def register():
     """Open Register VMs dialog. interactivity blueprint will handle form input"""
+    logger.debug(request.form)
     user_id = request.form['user_id']
+    logger.info("User %s called /register", user_id)
     dialog = {
         "callback_id": "aws_callback",
         "title": "Register your VMs",
@@ -75,11 +82,12 @@ def register():
             }
         ]
     }
-
-    Slack.dialog_open(
+    logger.debug("Opening VMs dialog")
+    OviBot.dialog_open(
         trigger_id=request.form['trigger_id'],
         dialog=dialog
     )
+    logger.info("Dialog shown")
 
     return make_response('', 200)
 
@@ -107,7 +115,7 @@ def handle_aws_submission(action):
     else:
         logger.debug(f"Get or create user. Id '{user_id}'")
         user = get_or_create_user(Slack, user_id)
-        logger.debug("User: %s" % user.real_name)
+        logger.debug("User: %s", user.real_name)
 
         try:
             logger.debug(f"Saving VMs of '{user.real_name}'..")
@@ -185,7 +193,6 @@ def save_user_vms(user, ovi_name, ovi_token, new_user_vms):
     db.session.commit()
 
 
-
 @bp.route('/start', methods=('GET', 'POST'))
 def start():
     """Start a vm owned by a user"""
@@ -256,9 +263,10 @@ def stop():
 @bp.route('/list_vms', methods=('GET', 'POST'))
 def list_vms():
     """List VMs owned by the user on oviup"""
-    timeout = request.form.get('text', 30)
+    timeout = request.form.get('text') or 30
     user_id = request.form['user_id']
     channel_id = request.form['channel_id']
+    logger.info("The timeout was: %s", timeout)
     user = get_or_create_user(Slack, user_id)
 
     # No need to get user owned vms nor to receive alias from user
@@ -337,7 +345,7 @@ def user_owned_vms():
 
     user_vms = user.owned_vms
     if not user_vms:
-        msg = f"Hey {user.first_name}, you don't own any vm yet. Start with `/ovi_register`"
+        msg = f"Hey {user.first_name}, you don't own any vm yet. Start with `/register`"
     else:
         name = user.ovi_name or 'No name set'
         msg = f'Ovi username: `{name}`\n'
@@ -346,7 +354,7 @@ def user_owned_vms():
     return command_response(msg)
 
 
-@bp.route('/delete_my_vms', methods=('GET', 'POST'))
+@bp.route('/unregister', methods=('GET', 'POST'))
 def delete_my_vms():
     """Delete VMs that were added by the user into slack and can be controlled through the bot"""
     user_id = request.form['user_id']

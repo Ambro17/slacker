@@ -6,13 +6,14 @@ from typing import Optional
 
 import requests
 
-from slacker.app_config import HOYPIDO_USER, HOYPIDO_MENU, HOYPIDO_TOKEN
 from slacker.exceptions import SlackerException
 
 logger = logging.getLogger(__name__)
 
 url = 'https://hoypido-api-v2.herokuapp.com/customer'
-ONAPSIS_SALUDABLE = f"{url}/{HOYPIDO_USER}/location/{HOYPIDO_MENU}/menus"
+hoypido_user = os.getenv('HOYPIDO_USER')
+menu_id = os.getenv('HOYPIDO_MENU')
+ONAPSIS_SALUDABLE = f"{url}/{hoypido_user}/location/{menu_id}/menus"
 
 
 MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY, SUNDAY = range(0, 7)
@@ -55,7 +56,7 @@ def get_comidas():
     }
     """
     menu_por_dia = {}
-    r = requests.get(ONAPSIS_SALUDABLE, params={'access_token': HOYPIDO_TOKEN}, timeout=2)
+    r = requests.get(ONAPSIS_SALUDABLE, params={'access_token': os.getenv('HOYPIDO_TOKEN')}, timeout=2)
     if r.status_code != 200:
         raise SlackerException(f'Could not connect to hoypido API. Try again later. {r.status_code}-{r.reason}-{r.url}')
 

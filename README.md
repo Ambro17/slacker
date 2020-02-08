@@ -31,13 +31,10 @@ $ cd task_queue && celery worker -A tasks --loglevel=info # Start worker
 .
 ├── slacker
 │   ├── api
-│   │   ├── aws
 │   │   ├── feriados
 │   │   ├── hoypido
 │   │   ├── poll
 │   │   ├── retro
-│   │   ├── rooms
-│   │   │   └── images
 │   │   └── subte
 │   ├── blueprints
 │   │   ├── commands.py
@@ -56,6 +53,9 @@ $ cd task_queue && celery worker -A tasks --loglevel=info # Start worker
     ├── api
     ├── blueprints
     └── models
+
+
+
 ```
 The project uses Flask as a framework and follows the application factory pattern to ease testing and development.
 Tests folder replicates the hierarchy on slacker dir.
@@ -95,13 +95,8 @@ To run tests run pytest on the project dir.
 `$ pytest`
 
 # Future features
-`/code`  Highlight code as monospace (or share a link to the snippet)
 
-`/meet @user1 @user2`
-
-`/on_home_office` - Set status to working for one day
-
-`/not_available [hs]` - Set as not available to discourage interruptions
+`/rooms` - List all available rooms (To ease reservations for meetings!)
 
 `/suscribe <subte_line>`
 
@@ -112,6 +107,14 @@ To run tests run pytest on the project dir.
 `/accountant`
 
 `/challenge <ping_pong|play|metegol> @someone [optional_taunt]` - Send a private message challenging a rival
+
+`/code <snippet>` - Highlight code as monospace (or share a link to the snippet)
+
+`/room <name>` - Get location of meeting room
+
+`/on_home_office` - Set status to working for one day
+
+`/not_available [hs]` - Set as not available to discourage interruptions
 
 
 ## Credits

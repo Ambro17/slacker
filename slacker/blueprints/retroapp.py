@@ -2,7 +2,7 @@ import re
 import traceback
 
 from flask import request
-from loguru import logger
+from slacker.log import logger
 
 from slacker.slack_cli import slack_cli
 from slacker.api.retro.retro import start_sprint, add_item, end_sprint
@@ -27,7 +27,7 @@ USER_REGEX = re.compile(rf'<@{user_id}\|{name}>')
 def index():
     return reply({
         'error': "You must specify a retro action.",
-        'commands': ['add_team', 'start_sprint', 'add_item', 'show_items', 'end_sprint']
+        'commands': ['save_team', 'start_sprint', 'add_item', 'show_items', 'end_sprint']
     })
 
 
@@ -35,7 +35,7 @@ def index():
 def add_team() -> str:
     text = request.form.get('text')
     if not text:
-        return 'Bad usage. i.e `/add_team t1 @john @carla`'
+        return 'Bad usage. i.e `/save_team t1 @john @carla`'
 
     def read_team_members(text):
         """
@@ -60,7 +60,7 @@ def add_team() -> str:
     try:
         team_name, members = read_team_members(text)
     except ValueError:
-        return ':no_entry_sign: Bad usage. Specify team name and members: `/add_team team_name @member1 @member2`'
+        return ':no_entry_sign: Bad usage. Specify team name and members: `/save_team team_name @member1 @member2`'
 
     team = get_or_create(db.session, Team, name=team_name)
     user_ids = get_user_id_from_members(members)
@@ -180,7 +180,7 @@ def team_members() -> str:
 @bp.route('/help', methods=('POST', ))
 def help():
     msg = """
-Teams have members. Add them with `/add_team my_team_name @member1 @member2 ...`
+Teams have members. Add them with `/save_team my_team_name @member1 @member2 ...`
 Teams have sprints. Start one with `/start_sprint my first sprint`
 Each sprint can have many retro items,\nadd them with `/add_retro_item we need to improve our estimations`
 If you want to see current retro items write `/show_retro_items`

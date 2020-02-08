@@ -4,11 +4,19 @@ import time
 import traceback
 
 from flask import Flask, request
-from loguru import logger
 
-from .app_config import CUERVOT_SIGNATURE, OVIBOT_SIGNATURE, HASH_SECRET, SQLALCHEMY_DATABASE_URI, DEBUG
+from .app_config import (
+    CUERVOT_SIGNATURE,
+    OVIBOT_SIGNATURE,
+    DEBUG,
+    HASH_SECRET,
+    SQLALCHEMY_DATABASE_URI,
+    ROOMS_BA_SIGNATURE,
+    POLLS_SIGNATURE
+)
 from .blueprints import commands as commands_bp, retroapp, interactivity, stickers, ovi_management, rooms
 from .database import db
+from .log import logger
 from .manage import clean, init_db
 from .security import Crypto
 from .utils import reply
@@ -18,6 +26,7 @@ def create_app(config_object='slacker.app_config'):
     """Create and configure an instance of the Flask application."""
     app = Flask(__name__)
     app.config.from_object(config_object)
+    app.logger = logger
 
     register_extensions(app)
     register_blueprints(app)
@@ -31,7 +40,7 @@ def register_extensions(app):
     """Register db and bcrypt extensions."""
     db.init_app(app)
     Crypto.configure(HASH_SECRET)
-    logger.debug(f"Database: {SQLALCHEMY_DATABASE_URI}")
+    logger.info(f"Database: {SQLALCHEMY_DATABASE_URI}")
 
 
 def register_blueprints(app):
@@ -64,16 +73,12 @@ def register_error_handlers(app):
         Docs: https://api.slack.com/docs/verifying-requests-from-slack#verification_token_deprecation
 
         """
-        if DEBUG:
+        if DEBUG or app.config.get('TESTING'):
             logger.debug('Dev mode. Bypassing signature checking..')
             return
 
-        # Encode secrets as bytestrings
-        mainsecret = CUERVOT_SIGNATURE
-        ovisecret = OVIBOT_SIGNATURE
-
         # Read request headers and reject it if it's too old
-        logger.debug('Headers:\n{}', request.headers)
+        logger.debug('Headers:\n %r', request.headers)
 
         try:
             request_hash = request.headers['X-Slack-Signature']
@@ -84,8 +89,13 @@ def register_error_handlers(app):
         if abs(time.time() - int(timestamp)) > 60 * 2:
             return bad_request('Request too old')
 
-        if not verify_signatures(timestamp, request_hash, (mainsecret, ovisecret)):
+        if not verify_signatures(timestamp,
+                                 request_hash,
+                                 (CUERVOT_SIGNATURE, OVIBOT_SIGNATURE, ROOMS_BA_SIGNATURE, POLLS_SIGNATURE)):
+            logger.info("Request authentificity failed")
             return bad_request('Failed request authenticity check. You are not slack..')
+
+        logger.debug("Valid request.")
 
     @app.errorhandler(400)
     def bad_request(error):

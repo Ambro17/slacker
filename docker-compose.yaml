@@ -5,7 +5,6 @@ services:
       context: ./slacker
       dockerfile: Dockerfile
     image: slacker
-    restart: always
     ports:
       - "3000:3000"
     depends_on:

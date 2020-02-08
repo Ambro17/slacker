@@ -7,7 +7,9 @@ Blueprint to manage rooms functionality
 from os import path
 
 from flask import request, make_response
-from loguru import logger
+
+from slacker.app_config import BOT_FATHER
+from slacker.log import logger
 from google.auth.transport.requests import Request
 
 from slacker.api.rooms.locations import (
@@ -17,7 +19,7 @@ from slacker.api.rooms.login import calendar
 from slacker.api.rooms.api import get_free_rooms, RoomFinder
 from slacker.slack_cli import OviBot
 from slacker.tasks_proxy import upload_file_async
-from slacker.utils import BaseBlueprint, reply, monospace, reply_text
+from slacker.utils import BaseBlueprint, reply, monospace, reply_text, command_response
 
 bp = BaseBlueprint('rooms', __name__, url_prefix='/rooms')
 
@@ -27,10 +29,13 @@ def get_authorization_url():
     """First step of oauth2 flow"""
     channel = request.form.get('channel_id')
     user = request.form.get('user_id')
+    if user != BOT_FATHER:
+        return command_response('You are not allowed to do this.')
+
     url = calendar.get_authorization_url()
     msg = (
         f'Visit the following url to get the authorization code:\n{url}\n'
-        'Then enter the auth code via `/set_token <auth_code>`'
+        'Then enter the auth code via `/authorize <auth_code>`'
     )
     r = OviBot.chat_postEphemeral(channel=channel, user=user, text=msg)
     if not r['ok']:
@@ -44,6 +49,9 @@ def get_authorization_url():
 def set_token():
     """Final step of oauth2 flow. Set token for further api requests"""
     form = request.form
+    if form.get('user_id') != BOT_FATHER:
+        return command_response('You are not allowed to do this.')
+
     auth_code = form.get('text')
     if not auth_code:
         return reply('Usage: /authorize <my_auth_code>')
@@ -133,7 +141,7 @@ def locate_room():
         image_path = create_image_from_map(location_map, image_path)
         logger.debug('Image created at {}', image_path)
 
-    logger.debug('Image path to upload: {}', image_path)
-    upload_file_async(file=image_path, channel=channel, filename=room.name)
-    logger.debug('Image uploaded')
+    logger.debug('Image path to upload: %s', image_path)
+    task = upload_file_async(file=image_path, channel=channel, filename=room.name)
+    logger.debug('Upload room image task sent. %s', task.id)
     return reply_text('Locating room.. :mag:')

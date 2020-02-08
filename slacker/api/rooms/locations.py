@@ -1,7 +1,7 @@
 from functools import partial
 from os.path import dirname, abspath, join as os_join
 from PIL import Image, ImageDraw, ImageFont
-from loguru import logger
+from slacker.log import logger
 
 from slacker.api.rooms.api import RoomFinder, Room
 

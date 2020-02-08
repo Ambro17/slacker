@@ -21,7 +21,7 @@ from typing import List, Tuple, Dict
 import pytz
 from docopt import docopt, DocoptExit
 from googleapiclient.discovery import build
-from loguru import logger
+from slacker.log import logger
 import unidecode
 
 bsas = pytz.timezone('America/Argentina/Buenos_Aires')
@@ -264,7 +264,8 @@ def get_free_rooms(credentials, args):
 def format_room_availability(free_rooms: Dict[str, dict]) -> str:
     def format_room(room):
         floor = {0: 'PB', 1: '1st Fl.', 2: '2nd Fl.'}
-        return f"*{room.name.title()}*\n{floor[room.floor]} | {room.capacity}:user: {'| :meet:' if room.has_meet else ''}"
+        return f"*{room.name.title()}*\n{floor[room.floor]} | " \
+               f"{room.capacity}:user: {'| :meet:' if room.has_meet else ''}"
 
     return '\n'.join(
         f"{format_room(details['room'])}\n"

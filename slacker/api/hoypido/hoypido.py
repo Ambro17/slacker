@@ -1,4 +1,3 @@
-from loguru import logger
 
 from slacker.api.hoypido.utils import (
     get_comidas,

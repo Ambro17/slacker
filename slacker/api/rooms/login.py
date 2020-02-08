@@ -6,7 +6,7 @@ import requests_oauthlib
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow
 from google.auth.transport.requests import Request
-from loguru import logger
+from slacker.log import logger
 
 from slacker.app_config import CALENDAR_CLIENT, CALENDAR_SECRET
 
